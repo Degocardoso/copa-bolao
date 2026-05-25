@@ -6,6 +6,7 @@ import { criarClienteNavegador } from '@/lib/supabase-browser';
 const abas = [
   { href: '/jogos', label: 'Jogos', icone: '⚽' },
   { href: '/meus-palpites', label: 'Palpites', icone: '🎯' },
+  { href: '/simulador', label: 'Chave', icone: '🔮' },
   { href: '/transparencia', label: 'Galera', icone: '👀' },
   { href: '/ranking', label: 'Ranking', icone: '🏆' },
 ];

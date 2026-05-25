@@ -89,7 +89,7 @@ export default async function PaginaMeusPalpites() {
                   {!travado && <span className="tag tag-grass">aberto p/ editar</span>}
                   {travado && !oficial && <span className="tag tag-dim">aguardando jogo</span>}
                   {oficial && (
-                    <span className={`tag ${pts === 3 ? 'tag-grass' : pts === 1 ? 'tag-gold' : 'tag-locked'}`}>
+                    <span className={`tag ${pts >= 3 ? 'tag-grass' : pts === 1 ? 'tag-gold' : 'tag-locked'}`}>
                       oficial {j.gols_casa} × {j.gols_fora} · {pts > 0 ? `+${pts}` : '0'}
                     </span>
                   )}

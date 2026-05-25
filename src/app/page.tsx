@@ -29,7 +29,7 @@ export default async function PaginaLogin() {
           </div>
           <div className="passo">
             <span className="passo-n mono">02</span>
-            <span>Cravou o placar: 3 pontos. Só o vencedor ou o empate: 1 ponto</span>
+            <span>Empate cravado: 4 pts. Vitória cravada: 3 pts. Só o resultado: 1 pt</span>
           </div>
           <div className="passo">
             <span className="passo-n mono">03</span>

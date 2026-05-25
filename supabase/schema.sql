@@ -167,8 +167,10 @@ select
   coalesce(sum(
     case
       when j.gols_casa is null or j.gols_fora is null then 0
-      -- placar exato: 3 pontos
-      when pl.gols_casa = j.gols_casa and pl.gols_fora = j.gols_fora then 3
+      -- placar exato:
+      when pl.gols_casa = j.gols_casa and pl.gols_fora = j.gols_fora then
+        case when j.gols_casa = j.gols_fora then 4   -- empate cravado
+             else 3 end                              -- vitória cravada
       -- acertou só o resultado (vencedor certo ou empate certo): 1 ponto
       when sign(pl.gols_casa - pl.gols_fora) = sign(j.gols_casa - j.gols_fora) then 1
       -- errou: 0

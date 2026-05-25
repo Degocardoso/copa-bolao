@@ -168,7 +168,8 @@ export default function ListaJogos({
                     <div className={`oficial ${ptsJogo > 0 ? 'cravou' : ''}`}>
                       Resultado oficial: <b>{jogo.gols_casa} × {jogo.gols_fora}</b>
                       {temPalpite && (
-                        ptsJogo === 3 ? ' · você cravou o placar! +3 🎯'
+                        ptsJogo === 4 ? ' · você cravou o empate! +4 🔥'
+                        : ptsJogo === 3 ? ' · você cravou o placar! +3 🎯'
                         : ptsJogo === 1 ? ' · acertou o resultado! +1 ✅'
                         : ' · não foi dessa vez'
                       )}

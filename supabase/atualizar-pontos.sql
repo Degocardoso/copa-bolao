@@ -1,14 +1,14 @@
 -- ============================================================
 --  ATUALIZAR A REGRA DE PONTOS  (sem apagar nada)
 --
---  Use este arquivo se você JÁ tem jogos/palpites no banco e só quer
---  aplicar a nova pontuação:
---    • placar exato ............ 3 pontos
---    • acertou só o resultado .. 1 ponto (vencedor certo OU empate certo)
---    • errou ................... 0 ponto
+--  Regra atual:
+--    • empate com placar exato (ex: 2x2 e deu 2x2) ... 4 pontos
+--    • vitória com placar exato (ex: 2x1 e deu 2x1) ... 3 pontos
+--    • acertou só o resultado (vencedor certo OU empate) ... 1 ponto
+--    • errou ................................................ 0 ponto
 --
---  Ele apenas substitui a "view" do ranking. NÃO mexe em jogos,
---  times nem palpites. Pode rodar com tranquilidade.
+--  Só substitui a "view" do ranking. NÃO mexe em jogos, times
+--  nem palpites. Pode rodar com tranquilidade.
 --
 --  Cole no Supabase: SQL Editor > New query > Run
 -- ============================================================
@@ -21,8 +21,10 @@ select
   coalesce(sum(
     case
       when j.gols_casa is null or j.gols_fora is null then 0
-      -- placar exato: 3 pontos
-      when pl.gols_casa = j.gols_casa and pl.gols_fora = j.gols_fora then 3
+      -- placar exato:
+      when pl.gols_casa = j.gols_casa and pl.gols_fora = j.gols_fora then
+        case when j.gols_casa = j.gols_fora then 4   -- empate cravado
+             else 3 end                              -- vitória cravada
       -- acertou só o resultado (vencedor certo ou empate certo): 1 ponto
       when sign(pl.gols_casa - pl.gols_fora) = sign(j.gols_casa - j.gols_fora) then 1
       else 0
