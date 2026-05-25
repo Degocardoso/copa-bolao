@@ -18,8 +18,8 @@ export default async function PaginaLogin() {
           <span className="destaque">COPA DO MUNDO</span>
         </h1>
         <p className="sub">
-          Dê seus palpites em cada jogo, dispute pontos com a galera
-          e veja quem manda no futebol. 1 acerto = 1 ponto.
+          Dê seu palpite de placar em cada jogo, dispute pontos com a galera
+          e veja quem manda no futebol.
         </p>
 
         <div className="passos">
@@ -29,11 +29,11 @@ export default async function PaginaLogin() {
           </div>
           <div className="passo">
             <span className="passo-n mono">02</span>
-            <span>Palpite antes de cada jogo começar</span>
+            <span>Cravou o placar: 3 pontos. Só o vencedor ou o empate: 1 ponto</span>
           </div>
           <div className="passo">
             <span className="passo-n mono">03</span>
-            <span>Acompanhe o ranking ao vivo</span>
+            <span>Palpite antes do apito e acompanhe o ranking ao vivo</span>
           </div>
         </div>
 

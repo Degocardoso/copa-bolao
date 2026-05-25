@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { criarClienteNavegador } from '@/lib/supabase-browser';
 import type { Jogo, Time, Palpite } from '@/lib/tipos';
 import { formatarData, jogoComecou } from '@/lib/tipos';
+import { pontosDoPalpite } from '@/lib/tipos';
+import Bandeira from '@/components/Bandeira';
 
 type Placar = { casa: number; fora: number };
 
@@ -113,6 +115,9 @@ export default function ListaJogos({
               const cravou =
                 oficial && temPalpite && placar &&
                 placar.casa === jogo.gols_casa && placar.fora === jogo.gols_fora;
+              const ptsJogo = oficial && temPalpite && placar
+                ? pontosDoPalpite(placar.casa, placar.fora, jogo.gols_casa, jogo.gols_fora)
+                : 0;
 
               // mudou em relacao ao salvo?
               const inicial = palpitesIniciais.find((p) => p.jogo_id === jogo.id);
@@ -133,7 +138,7 @@ export default function ListaJogos({
 
                   <div className="confronto">
                     <div className="lado">
-                      <span className="bandeira">{casa?.bandeira || '🏳️'}</span>
+                      <Bandeira emoji={casa?.bandeira} tamanho={30} />
                       <span className="time-nome">{casa?.nome || 'A definir'}</span>
                     </div>
 
@@ -154,15 +159,19 @@ export default function ListaJogos({
                     </div>
 
                     <div className="lado">
-                      <span className="bandeira">{fora?.bandeira || '🏳️'}</span>
+                      <Bandeira emoji={fora?.bandeira} tamanho={30} />
                       <span className="time-nome">{fora?.nome || 'A definir'}</span>
                     </div>
                   </div>
 
                   {oficial && (
-                    <div className={`oficial ${cravou ? 'cravou' : ''}`}>
+                    <div className={`oficial ${ptsJogo > 0 ? 'cravou' : ''}`}>
                       Resultado oficial: <b>{jogo.gols_casa} × {jogo.gols_fora}</b>
-                      {temPalpite && (cravou ? ' · você cravou! +3 🎯' : ' · não foi dessa vez')}
+                      {temPalpite && (
+                        ptsJogo === 3 ? ' · você cravou o placar! +3 🎯'
+                        : ptsJogo === 1 ? ' · acertou o resultado! +1 ✅'
+                        : ' · não foi dessa vez'
+                      )}
                     </div>
                   )}
 
@@ -278,9 +287,9 @@ function Stepper({
 }) {
   return (
     <div className="stepper">
-      <button className="sbtn" disabled={travado} onClick={onMenos} aria-label="menos">−</button>
-      <span className="snum mono">{valor}</span>
       <button className="sbtn" disabled={travado} onClick={onMais} aria-label="mais">+</button>
+      <span className="snum mono">{valor}</span>
+      <button className="sbtn" disabled={travado} onClick={onMenos} aria-label="menos">−</button>
       <style jsx>{`
         .stepper {
           display: flex; flex-direction: column; align-items: center; gap: 4px;

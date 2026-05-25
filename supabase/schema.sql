@@ -166,11 +166,13 @@ select
   p.avatar_url,
   coalesce(sum(
     case
-      when j.gols_casa is not null
-       and j.gols_fora is not null
-       and pl.gols_casa = j.gols_casa
-       and pl.gols_fora = j.gols_fora
-      then 3 else 0
+      when j.gols_casa is null or j.gols_fora is null then 0
+      -- placar exato: 3 pontos
+      when pl.gols_casa = j.gols_casa and pl.gols_fora = j.gols_fora then 3
+      -- acertou só o resultado (vencedor certo ou empate certo): 1 ponto
+      when sign(pl.gols_casa - pl.gols_fora) = sign(j.gols_casa - j.gols_fora) then 1
+      -- errou: 0
+      else 0
     end
   ), 0) as pontos,
   count(pl.id) filter (

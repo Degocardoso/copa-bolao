@@ -1,6 +1,7 @@
 import { criarClienteServidor } from '@/lib/supabase-server';
 import type { Jogo, Time, Palpite } from '@/lib/tipos';
-import { formatarData, jogoComecou, resultadoDoPlacar } from '@/lib/tipos';
+import { formatarData, jogoComecou, resultadoDoPlacar, pontosDoPalpite } from '@/lib/tipos';
+import Bandeira from '@/components/Bandeira';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,8 +29,8 @@ export default async function PaginaMeusPalpites() {
   comPalpite.forEach((j) => {
     if (j.gols_casa != null && j.gols_fora != null) {
       const p = mapaPalpite.get(j.id)!;
+      totalPontos += pontosDoPalpite(p.gols_casa, p.gols_fora, j.gols_casa, j.gols_fora);
       if (p.gols_casa === j.gols_casa && p.gols_fora === j.gols_fora) {
-        totalPontos += 3;
         cravados += 1;
       }
     }
@@ -74,21 +75,22 @@ export default async function PaginaMeusPalpites() {
             const travado = jogoComecou(j.inicio);
             const oficial = j.gols_casa != null && j.gols_fora != null;
             const cravou = oficial && p.gols_casa === j.gols_casa && p.gols_fora === j.gols_fora;
+            const pts = oficial ? pontosDoPalpite(p.gols_casa, p.gols_fora, j.gols_casa, j.gols_fora) : 0;
 
             return (
               <div key={j.id} className={`linha ${cravou ? 'linha-cravou' : ''}`}>
                 <div className="linha-times">
-                  <span className="lt">{casa?.bandeira} {casa?.nome || 'A definir'}</span>
+                  <span className="lt"><Bandeira emoji={casa?.bandeira} tamanho={16} /> {casa?.nome || 'A definir'}</span>
                   <span className="lt-vs">{p.gols_casa} × {p.gols_fora}</span>
-                  <span className="lt lt-fim">{fora?.nome || 'A definir'} {fora?.bandeira}</span>
+                  <span className="lt lt-fim">{fora?.nome || 'A definir'} <Bandeira emoji={fora?.bandeira} tamanho={16} /></span>
                 </div>
                 <div className="linha-info">
                   <span className="mono data">{formatarData(j.inicio)}</span>
                   {!travado && <span className="tag tag-grass">aberto p/ editar</span>}
                   {travado && !oficial && <span className="tag tag-dim">aguardando jogo</span>}
                   {oficial && (
-                    <span className={`tag ${cravou ? 'tag-grass' : 'tag-locked'}`}>
-                      oficial {j.gols_casa} × {j.gols_fora} {cravou ? '· +3' : '· 0'}
+                    <span className={`tag ${pts === 3 ? 'tag-grass' : pts === 1 ? 'tag-gold' : 'tag-locked'}`}>
+                      oficial {j.gols_casa} × {j.gols_fora} · {pts > 0 ? `+${pts}` : '0'}
                     </span>
                   )}
                 </div>
@@ -122,7 +124,8 @@ export default async function PaginaMeusPalpites() {
           display: flex; align-items: center; justify-content: space-between;
           gap: 8px; font-size: 14px; font-weight: 700;
         }
-        .lt { flex: 1; }
+        .lt { flex: 1; display: flex; align-items: center; gap: 6px; }
+        .lt-fim { justify-content: flex-end; }
         .lt-fim { text-align: right; }
         .lt-vs {
           background: var(--bg-2); border: 1px solid var(--line);

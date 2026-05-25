@@ -24,7 +24,7 @@ export default async function PaginaRanking() {
       <DispararSync />
       <h2 className="display" style={{ fontSize: 26, marginBottom: 4 }}>Ranking</h2>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>
-        3 pontos por placar cravado. Quem manda no bolão? 🏆
+        Placar exato vale 3 pontos, acertar o resultado vale 1. Quem manda no bolão? 🏆
       </p>
 
       {linhas.length === 0 ? (

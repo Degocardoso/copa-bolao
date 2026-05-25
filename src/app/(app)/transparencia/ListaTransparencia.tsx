@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react';
 import type { Jogo, Time } from '@/lib/tipos';
 import { formatarData, jogoComecou } from '@/lib/tipos';
+import { pontosDoPalpite } from '@/lib/tipos';
+import Bandeira from '@/components/Bandeira';
 
 type Jogador = { id: string; nome: string; avatar_url: string | null; status: string };
 type PalpiteT = {
@@ -116,11 +118,14 @@ export default function ListaTransparencia({
                     const oficial = jogo.gols_casa != null && jogo.gols_fora != null;
                     const cravou =
                       oficial && p.gols_casa === jogo.gols_casa && p.gols_fora === jogo.gols_fora;
+                    const pts = oficial
+                      ? pontosDoPalpite(p.gols_casa, p.gols_fora, jogo.gols_casa, jogo.gols_fora)
+                      : 0;
 
                     return (
                       <div key={p.jogo_id} className="pal">
                         <div className="pal-jogo">
-                          <span>{casa.bandeira} {casa.nome}</span>
+                          <span className="lt-time"><Bandeira emoji={casa.bandeira} tamanho={15} /> {casa.nome}</span>
                           {podeVer ? (
                             <span className={`placar ${cravou ? 'cravou' : ''}`}>
                               {p.gols_casa} × {p.gols_fora}
@@ -128,12 +133,12 @@ export default function ListaTransparencia({
                           ) : (
                             <span className="oculto">🔒</span>
                           )}
-                          <span className="dir">{fora.nome} {fora.bandeira}</span>
+                          <span className="dir lt-time">{fora.nome} <Bandeira emoji={fora.bandeira} tamanho={15} /></span>
                         </div>
                         <div className="pal-meta mono">
                           {podeVer ? (
                             <>palpitou em {formatarData(p.atualizado_em)}
-                            {oficial && (cravou ? ' · acertou +3' : ' · errou')}</>
+                            {oficial && (pts > 0 ? ` · +${pts}` : ' · 0')}</>
                           ) : (
                             <>oculto até o jogo começar ({formatarData(jogo.inicio)})</>
                           )}
@@ -188,6 +193,8 @@ export default function ListaTransparencia({
           align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
         }
         .pal-jogo .dir { text-align: right; }
+        .lt-time { display: inline-flex; align-items: center; gap: 5px; }
+        .pal-jogo .dir.lt-time { justify-content: flex-end; }
         .placar {
           background: var(--bg-2); border: 1px solid var(--line);
           border-radius: 7px; padding: 3px 11px; font-weight: 800;

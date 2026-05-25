@@ -56,3 +56,18 @@ export function resultadoDoPlacar(gc: number, gf: number): 'casa' | 'fora' | 'em
   if (gf > gc) return 'fora';
   return 'empate';
 }
+
+// Calcula os pontos de um palpite contra o resultado oficial.
+// Regra: placar exato = 3; só o resultado (vencedor ou empate) certo = 1; senão 0.
+export function pontosDoPalpite(
+  palpiteCasa: number,
+  palpiteFora: number,
+  realCasa: number | null,
+  realFora: number | null
+): number {
+  if (realCasa == null || realFora == null) return 0;
+  if (palpiteCasa === realCasa && palpiteFora === realFora) return 3;
+  const sinal = (a: number, b: number) => Math.sign(a - b);
+  if (sinal(palpiteCasa, palpiteFora) === sinal(realCasa, realFora)) return 1;
+  return 0;
+}
