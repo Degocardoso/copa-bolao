@@ -1,7 +1,7 @@
 import './login.css';
 import { redirect } from 'next/navigation';
 import { criarClienteServidor } from '@/lib/supabase-server';
-import BotaoGoogle from '@/components/BotaoGoogle';
+import Login from '@/components/Login';
 
 export default async function PaginaLogin() {
   const supabase = criarClienteServidor();
@@ -37,7 +37,7 @@ export default async function PaginaLogin() {
           </div>
         </div>
 
-        <BotaoGoogle />
+        <Login />
 
         <p className="aviso">
           Ao entrar, seu palpite trava automaticamente no apito inicial

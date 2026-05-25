@@ -71,6 +71,21 @@ Crie (se ainda não tiver) uma conta em:
 3. Logo acima aparece a "Callback URL (for OAuth)". Confira que é a mesma que você
    colou no Google. Se for diferente, ajuste lá no Google.
 
+### c) Ligar o login por email (link mágico)
+Além do Google, o site oferece login por **link mágico**: a pessoa digita o email,
+recebe um link e entra (sem senha, serve para qualquer email — Gmail, Outlook, etc.).
+1. No Supabase: **Authentication** → **Providers** → **Email**.
+2. Deixe **Email** ativado. Pode **desligar** a opção "Confirm email" não é necessário;
+   o importante é que o provedor Email esteja habilitado (já vem por padrão).
+3. Em **Authentication** → **URL Configuration**, confirme que o seu site está em
+   **Site URL** e em **Redirect URLs** (ex: `https://SEU-SITE.vercel.app/**`).
+   É isso que faz o link do email voltar para o site certo.
+
+> 💡 No plano grátis o Supabase envia os emails de link com um limite (algumas
+> dezenas por hora) e remetente padrão. Para um bolão de família/trabalho é
+> suficiente. Para muitos usuários, dá para configurar um servidor de email
+> próprio (SMTP) nas configurações de Auth — mas isso é opcional.
+
 ---
 
 ## 3️⃣ Pegar as chaves do Supabase
