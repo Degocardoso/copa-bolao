@@ -57,13 +57,19 @@ export function montarOitavas(
     ...ordenarBloco(terceiros),
   ];
 
-  // forma 16 confrontos cruzando o melhor com o pior (seed 1 x seed 32...)
-  const confrontos: Confronto[] = [];
+  // Monta as oitavas usando a ORDEM DE BRACKET de torneio, para que os
+  // melhores seeds fiquem em lados opostos da chave (1 e 2 só se encontram
+  // na final, 1 e 3/4 só na semi, etc.) — como numa Copa de verdade.
   const n = seeds.length;
+  const ordemBracket = ordemDeChaveamento(n); // ex p/ 16: [1,16,8,9,4,13,5,12,2,15,...]
+  const confrontos: Confronto[] = [];
   const pares = Math.floor(n / 2);
   for (let i = 0; i < pares; i++) {
-    const a = seeds[i];
-    const b = seeds[n - 1 - i];
+    // ordemBracket lista os "slots" em pares: posição 2i e 2i+1 se enfrentam
+    const seedA = ordemBracket[i * 2] - 1;     // -1 porque seeds é 0-indexado
+    const seedB = ordemBracket[i * 2 + 1] - 1;
+    const a = seeds[seedA];
+    const b = seeds[seedB];
     confrontos.push({
       id: `oitavas-${i + 1}`,
       fase: 'oitavas',
@@ -73,6 +79,24 @@ export function montarOitavas(
     });
   }
   return confrontos;
+}
+
+// Gera a ordem padrão de chaveamento (standard seeding bracket) para `tamanho`
+// participantes (potência de 2). Garante que seed 1 e seed 2 fiquem em metades
+// opostas, encontrando-se só na final; 1 e 4 só na semi; e assim por diante.
+// Ex.: tamanho 4 -> [1,4,2,3]; tamanho 8 -> [1,8,4,5,2,7,3,6].
+function ordemDeChaveamento(tamanho: number): number[] {
+  let rodada = [1, 2];
+  while (rodada.length < tamanho) {
+    const n = rodada.length * 2;
+    const proxima: number[] = [];
+    for (const s of rodada) {
+      proxima.push(s);
+      proxima.push(n + 1 - s); // o complemento (parceiro de confronto)
+    }
+    rodada = proxima;
+  }
+  return rodada;
 }
 
 // Cria os confrontos vazios das fases seguintes (preenchidos pelos
