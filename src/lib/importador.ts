@@ -81,6 +81,7 @@ export type JogoImportado = {
   chave_externa: string;
   fase: string;
   rodada: string | null;
+  grupo: string | null;   // ex: 'A', 'B'... (nulo no mata-mata)
   inicio: string; // ISO
   time1_nome: string;
   time1_bandeira: string;
@@ -144,10 +145,15 @@ export async function buscarJogosOpenFootball(): Promise<JogoImportado[]> {
     const round = m.round || '';
     const ehGrupos = !!m.group || /matchday/i.test(round);
     const ft = m.score?.ft;
+    // extrai só a letra do grupo (ex: "Group A" -> "A")
+    const grupoLetra = m.group
+      ? m.group.replace(/group/i, '').trim().toUpperCase() || null
+      : null;
     return {
       chave_externa: `wc2026-${i}`,
       fase: ehGrupos ? 'grupos' : 'mata-mata',
       rodada: m.group ? m.group.replace('Group', 'Grupo') : round || null,
+      grupo: ehGrupos ? grupoLetra : null,
       inicio: montarInicio(m.date, m.time),
       time1_nome: t1.nome,
       time1_bandeira: t1.bandeira,

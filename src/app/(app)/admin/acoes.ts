@@ -91,11 +91,18 @@ export async function importarDaCopa() {
 
   const jogos = await buscarJogosOpenFootball();
 
-  // 1) Reúne todos os times reais (ignora marcadores "a definir")
-  const timesUnicos = new Map<string, { nome: string; bandeira: string }>();
+  // 1) Reúne todos os times reais (ignora marcadores "a definir"),
+  //    guardando o grupo de cada um (vem dos jogos de fase de grupos).
+  const timesUnicos = new Map<string, { nome: string; bandeira: string; grupo: string | null }>();
   for (const j of jogos) {
-    if (j.time1_bandeira !== '⏳') timesUnicos.set(j.time1_nome, { nome: j.time1_nome, bandeira: j.time1_bandeira });
-    if (j.time2_bandeira !== '⏳') timesUnicos.set(j.time2_nome, { nome: j.time2_nome, bandeira: j.time2_bandeira });
+    if (j.time1_bandeira !== '⏳') {
+      const ex = timesUnicos.get(j.time1_nome);
+      timesUnicos.set(j.time1_nome, { nome: j.time1_nome, bandeira: j.time1_bandeira, grupo: j.grupo ?? ex?.grupo ?? null });
+    }
+    if (j.time2_bandeira !== '⏳') {
+      const ex = timesUnicos.get(j.time2_nome);
+      timesUnicos.set(j.time2_nome, { nome: j.time2_nome, bandeira: j.time2_bandeira, grupo: j.grupo ?? ex?.grupo ?? null });
+    }
   }
 
   // 2) Garante os times no banco (sem duplicar, casando por chave_externa = nome)
@@ -103,7 +110,7 @@ export async function importarDaCopa() {
     await admin
       .from('times')
       .upsert(
-        { nome: t.nome, bandeira: t.bandeira, chave_externa: t.nome },
+        { nome: t.nome, bandeira: t.bandeira, grupo: t.grupo, chave_externa: t.nome },
         { onConflict: 'chave_externa' }
       );
   }
