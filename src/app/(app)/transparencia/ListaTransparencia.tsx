@@ -21,12 +21,14 @@ export default function ListaTransparencia({
   times,
   palpites,
   meuId,
+  campeaoPorUsuario,
 }: {
   jogadores: Jogador[];
   jogos: Jogo[];
   times: Time[];
   palpites: PalpiteT[];
   meuId: string;
+  campeaoPorUsuario: Record<string, number | null>;
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -98,6 +100,16 @@ export default function ListaTransparencia({
                 {jog.nome}
                 {ehEu && <span className="voce">você</span>}
               </span>
+              {(() => {
+                const campId = campeaoPorUsuario[jog.id];
+                const camp = campId ? mapaTimes.get(campId) : null;
+                if (!camp) return null;
+                return (
+                  <span className="campeao" title={`Campeão palpitado: ${camp.nome}`}>
+                    🏆 <Bandeira emoji={camp.bandeira} tamanho={16} />
+                  </span>
+                );
+              })()}
               <span className="cont">{meus.length} palpite{meus.length === 1 ? '' : 's'}</span>
               <span className={`seta ${expandido ? 'gira' : ''}`}>▾</span>
             </button>
@@ -178,6 +190,7 @@ export default function ListaTransparencia({
           padding: 1px 7px; border-radius: 999px; font-weight: 800; text-transform: uppercase;
         }
         .cont { font-size: 12px; color: var(--text-faint); }
+        .campeao { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; flex-shrink: 0; }
         .seta { color: var(--text-dim); transition: transform 0.2s; font-size: 13px; }
         .seta.gira { transform: rotate(180deg); }
         .palpites {

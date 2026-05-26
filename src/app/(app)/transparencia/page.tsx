@@ -13,13 +13,20 @@ export default async function PaginaTransparencia() {
   const admin = criarClienteAdmin();
 
   // jogadores aprovados, jogos, times e todos os palpites
-  const [{ data: perfis }, { data: jogos }, { data: times }, { data: palpites }] =
+  const [{ data: perfis }, { data: jogos }, { data: times }, { data: palpites }, { data: finais }] =
     await Promise.all([
       admin.from('perfis').select('id, nome, avatar_url, status').eq('status', 'aprovado').order('nome'),
       admin.from('jogos').select('*').order('inicio'),
       admin.from('times').select('*'),
       admin.from('palpites').select('usuario_id, jogo_id, gols_casa, gols_fora, atualizado_em'),
+      admin.from('palpites_mata').select('usuario_id, vencedor').eq('confronto', 'final'),
     ]);
+
+  // mapa: usuario -> id do time campeão que ele palpitou
+  const campeaoPorUsuario: Record<string, number | null> = {};
+  (finais || []).forEach((f: { usuario_id: string; vencedor: number | null }) => {
+    campeaoPorUsuario[f.usuario_id] = f.vencedor;
+  });
 
   return (
     <main className="container" style={{ paddingTop: 22 }}>
@@ -34,6 +41,7 @@ export default async function PaginaTransparencia() {
         times={(times as Time[]) || []}
         palpites={palpites || []}
         meuId={meuId}
+        campeaoPorUsuario={campeaoPorUsuario}
       />
     </main>
   );

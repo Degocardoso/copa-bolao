@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { criarClienteNavegador } from '@/lib/supabase-browser';
-import type { Jogo, Time, Palpite } from '@/lib/tipos';
+import type { Jogo, Time, Palpite, PalpiteMataSalvo } from '@/lib/tipos';
 import { formatarData, jogoComecou } from '@/lib/tipos';
 import { pontosDoPalpite } from '@/lib/tipos';
 import Bandeira from '@/components/Bandeira';
+import SecaoMataMata from './SecaoMataMata';
 
 type Placar = { casa: number; fora: number };
 
@@ -14,11 +15,21 @@ export default function ListaJogos({
   times,
   palpitesIniciais,
   usuarioId,
+  totalGrupo,
+  palpitadosGrupo,
+  palpitesMataIniciais,
+  mataComecou,
+  primeiroMata,
 }: {
   jogos: Jogo[];
   times: Time[];
   palpitesIniciais: Palpite[];
   usuarioId: string;
+  totalGrupo: number;
+  palpitadosGrupo: number;
+  palpitesMataIniciais: PalpiteMataSalvo[];
+  mataComecou: boolean;
+  primeiroMata: string | null;
 }) {
   const supabase = criarClienteNavegador();
 
@@ -215,6 +226,18 @@ export default function ListaJogos({
           </div>
         </section>
       ))}
+
+      <SecaoMataMata
+        jogos={jogos}
+        times={times}
+        placaresGrupo={placares}
+        totalGrupo={totalGrupo}
+        palpitadosGrupo={palpitadosGrupo}
+        salvosGrupo={salvos.size}
+        palpitesMataIniciais={palpitesMataIniciais}
+        mataComecou={mataComecou}
+        primeiroMata={primeiroMata}
+      />
 
       <style jsx>{`
         .erro-flutua {

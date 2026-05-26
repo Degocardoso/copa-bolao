@@ -79,3 +79,14 @@ export function pontosDoPalpite(
   if (sinal(palpiteCasa, palpiteFora) === sinal(realCasa, realFora)) return 1;
   return 0;
 }
+
+export type PalpiteMataSalvo = {
+  confronto: string;
+  fase: string;
+  time_a: number | null;
+  time_b: number | null;
+  vencedor: number | null;
+  gols_a: number | null;
+  gols_b: number | null;
+  atualizado_em?: string;
+};
