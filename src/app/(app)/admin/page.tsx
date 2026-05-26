@@ -5,6 +5,7 @@ import type { Jogo, Time } from '@/lib/tipos';
 import { formatarData } from '@/lib/tipos';
 import { criarTime, apagarTime, criarJogo, apagarJogo, lancarPlacar, limparPlacar } from './acoes';
 import BotaoImportar from './BotaoImportar';
+import BotaoJogadores from './BotaoJogadores';
 import GestaoMembros from './GestaoMembros';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,12 @@ export default async function PaginaAdmin() {
 
       {/* IMPORTAÇÃO AUTOMÁTICA */}
       <BotaoImportar ultima={ultimaImp} />
+
+      {/* IMPORTAR JOGADORES (CRAQUES) */}
+      <section className="bloco">
+        <h3 className="bloco-tit">⭐ Jogadores (tela de Craques)</h3>
+        <BotaoJogadores />
+      </section>
 
       {/* MEMBROS */}
       <section className="bloco">

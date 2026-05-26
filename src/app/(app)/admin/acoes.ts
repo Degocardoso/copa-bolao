@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { criarClienteServidor } from '@/lib/supabase-server';
 import { criarClienteAdmin, ehAdmin } from '@/lib/supabase-admin';
-import { buscarJogosOpenFootball } from '@/lib/importador';
+import { buscarJogosOpenFootball, resolverSelecao } from '@/lib/importador';
+import { buscarJogadoresCopa } from '@/lib/api-football';
 
 // Garante que quem chamou é admin de verdade (checa a sessão no servidor)
 async function exigirAdmin() {
@@ -168,4 +169,46 @@ export async function definirStatusUsuario(formData: FormData) {
   revalidatePath('/admin');
   revalidatePath('/ranking');
   revalidatePath('/transparencia');
+}
+
+// ============================================================
+//  IMPORTAR JOGADORES (API-Football) — para a tela de Craques
+// ============================================================
+export async function importarJogadores() {
+  await exigirAdmin();
+  const token = process.env.API_FOOTBALL_KEY || '';
+  if (!token) {
+    return { ok: false, msg: 'Configure a variável API_FOOTBALL_KEY na Vercel primeiro.' };
+  }
+
+  let jogadores;
+  try {
+    jogadores = await buscarJogadoresCopa(token);
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : 'Erro ao buscar jogadores.' };
+  }
+  if (jogadores.length === 0) {
+    return { ok: false, msg: 'A API não retornou jogadores ainda (a lista sai perto da Copa).' };
+  }
+
+  const admin = criarClienteAdmin();
+  const linhas = jogadores.map((j) => {
+    const sel = resolverSelecao(j.selecao);
+    return {
+      id: j.id,
+      nome: j.nome,
+      time_nome: sel.nome,
+      bandeira: sel.bandeira,
+      foto: j.foto,
+    };
+  });
+
+  // grava em lotes (upsert por id)
+  const { error } = await admin.from('jogadores').upsert(linhas, { onConflict: 'id' });
+  if (error) {
+    return { ok: false, msg: 'Erro ao salvar jogadores no banco.' };
+  }
+
+  revalidatePath('/craques');
+  return { ok: true, msg: `${linhas.length} jogador(es) importado(s) com sucesso!` };
 }
