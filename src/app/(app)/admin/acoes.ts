@@ -212,3 +212,112 @@ export async function importarJogadores() {
   revalidatePath('/craques');
   return { ok: true, msg: `${linhas.length} jogador(es) importado(s) com sucesso!` };
 }
+
+// ============================================================
+//  CADASTRO MANUAL DE JOGADORES (até a API ter os convocados)
+// ============================================================
+
+export async function criarJogadorManual(formData: FormData) {
+  await exigirAdmin();
+  const admin = criarClienteAdmin();
+  const nome = String(formData.get('nome') || '').trim();
+  const time_nome = String(formData.get('time_nome') || '').trim();
+  const bandeira = String(formData.get('bandeira') || '').trim() || null;
+  if (!nome || !time_nome) return { ok: false, msg: 'Preencha nome e seleção.' };
+
+  // gera um ID local negativo (IDs da API são positivos, então não conflitam)
+  const { data: menor } = await admin
+    .from('jogadores').select('id').order('id', { ascending: true }).limit(1);
+  const proximoId = menor && menor[0] && menor[0].id < 0 ? menor[0].id - 1 : -1;
+
+  const { error } = await admin.from('jogadores').insert({
+    id: proximoId,
+    nome,
+    time_nome,
+    bandeira,
+    foto: null,
+  });
+
+  if (error) return { ok: false, msg: 'Não foi possível adicionar.' };
+  revalidatePath('/admin');
+  revalidatePath('/craques');
+  return { ok: true, msg: `${nome} adicionado!` };
+}
+
+export async function apagarJogadorManual(formData: FormData) {
+  await exigirAdmin();
+  const admin = criarClienteAdmin();
+  const id = Number(formData.get('id'));
+  // só permite apagar jogadores manuais (ID negativo), nunca os da API
+  if (id >= 0) return;
+  await admin.from('jogadores').delete().eq('id', id);
+  revalidatePath('/admin');
+  revalidatePath('/craques');
+}
+
+// ============================================================
+//  IMPORTAR LISTA DE JOGADORES POR TXT  (em lote)
+//  Formato por linha: "Nome do Jogador ; Nome da Seleção"
+//  Linhas com # no início (comentário) ou vazias são ignoradas.
+// ============================================================
+export async function importarJogadoresTxt(formData: FormData) {
+  await exigirAdmin();
+  const admin = criarClienteAdmin();
+  const texto = String(formData.get('texto') || '');
+  if (!texto.trim()) return { ok: false, msg: 'Cole o texto com a lista.' };
+
+  // tabela de bandeiras por nome de seleção (vem dos times já cadastrados)
+  const { data: timesData } = await admin.from('times').select('nome, bandeira');
+  const bandeiraPorTime = new Map<string, string | null>();
+  (timesData || []).forEach((t: { nome: string; bandeira: string | null }) => {
+    bandeiraPorTime.set(t.nome, t.bandeira);
+  });
+
+  // parse das linhas: separador ; ou tab
+  const linhas = texto
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'));
+
+  // pega o menor ID negativo já existente pra continuar a numeração
+  const { data: menor } = await admin
+    .from('jogadores').select('id').order('id', { ascending: true }).limit(1);
+  let proximoId = menor && menor[0] && menor[0].id < 0 ? menor[0].id - 1 : -1;
+
+  const adicionados: string[] = [];
+  const ignorados: string[] = [];
+  const novos: { id: number; nome: string; time_nome: string; bandeira: string | null; foto: null }[] = [];
+
+  for (const linha of linhas) {
+    const partes = linha.split(/\s*[;\t]\s*/);
+    if (partes.length < 2) { ignorados.push(linha); continue; }
+    const nome = partes[0].trim();
+    const time = partes[1].trim();
+    if (!nome || !time) { ignorados.push(linha); continue; }
+    if (!bandeiraPorTime.has(time)) {
+      // seleção não cadastrada — ignora e avisa
+      ignorados.push(`${linha}  (seleção "${time}" não cadastrada)`);
+      continue;
+    }
+    novos.push({
+      id: proximoId--,
+      nome,
+      time_nome: time,
+      bandeira: bandeiraPorTime.get(time) || null,
+      foto: null,
+    });
+    adicionados.push(nome);
+  }
+
+  if (novos.length === 0) {
+    return { ok: false, msg: `Nenhum jogador novo. ${ignorados.length} linha(s) ignorada(s).` };
+  }
+
+  const { error } = await admin.from('jogadores').insert(novos);
+  if (error) return { ok: false, msg: 'Erro ao salvar no banco.' };
+
+  revalidatePath('/admin');
+  revalidatePath('/craques');
+  const detalhe = ignorados.length > 0 ? ` (${ignorados.length} linha(s) ignorada(s))` : '';
+  return { ok: true, msg: `${adicionados.length} jogador(es) adicionado(s)${detalhe}.` };
+}

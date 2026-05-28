@@ -1,0 +1,93 @@
+# Craques principais da Copa do Mundo 2026
+# Formato: Nome do Jogador ; Nome da Seleção (exatamente como cadastrada)
+# Linhas começando com # são ignoradas. Linhas vazias também.
+
+# ===== BRASIL =====
+Vinícius Júnior ; Brasil
+Rodrygo ; Brasil
+Raphinha ; Brasil
+Neymar ; Brasil
+Endrick ; Brasil
+Estêvão ; Brasil
+Casemiro ; Brasil
+Bruno Guimarães ; Brasil
+
+# ===== ARGENTINA =====
+Lionel Messi ; Argentina
+Lautaro Martínez ; Argentina
+Julián Álvarez ; Argentina
+Enzo Fernández ; Argentina
+Alexis Mac Allister ; Argentina
+Ángel Di María ; Argentina
+
+# ===== FRANÇA =====
+Kylian Mbappé ; França
+Ousmane Dembélé ; França
+Antoine Griezmann ; França
+Bradley Barcola ; França
+Michael Olise ; França
+Aurélien Tchouaméni ; França
+Kingsley Coman ; França
+
+# ===== ESPANHA =====
+Lamine Yamal ; Espanha
+Nico Williams ; Espanha
+Pedri ; Espanha
+Rodri ; Espanha
+Dani Olmo ; Espanha
+Álvaro Morata ; Espanha
+Mikel Oyarzabal ; Espanha
+Fabián Ruiz ; Espanha
+
+# ===== INGLATERRA =====
+Harry Kane ; Inglaterra
+Jude Bellingham ; Inglaterra
+Phil Foden ; Inglaterra
+Bukayo Saka ; Inglaterra
+Cole Palmer ; Inglaterra
+Declan Rice ; Inglaterra
+
+# ===== PORTUGAL =====
+Cristiano Ronaldo ; Portugal
+Bruno Fernandes ; Portugal
+Bernardo Silva ; Portugal
+Rafael Leão ; Portugal
+João Félix ; Portugal
+Gonçalo Ramos ; Portugal
+
+# ===== ALEMANHA =====
+Florian Wirtz ; Alemanha
+Jamal Musiala ; Alemanha
+Kai Havertz ; Alemanha
+Niclas Füllkrug ; Alemanha
+Leroy Sané ; Alemanha
+
+# ===== HOLANDA =====
+Memphis Depay ; Holanda
+Cody Gakpo ; Holanda
+Xavi Simons ; Holanda
+Frenkie de Jong ; Holanda
+
+# ===== NORUEGA =====
+Erling Haaland ; Noruega
+Martin Ødegaard ; Noruega
+Alexander Sørloth ; Noruega
+
+# ===== URUGUAI =====
+Darwin Núñez ; Uruguai
+Federico Valverde ; Uruguai
+Maximiliano Araújo ; Uruguai
+
+# ===== COLÔMBIA =====
+James Rodríguez ; Colômbia
+Luis Díaz ; Colômbia
+Jhon Durán ; Colômbia
+
+# ===== CROÁCIA =====
+Luka Modrić ; Croácia
+Andrej Kramarić ; Croácia
+
+# ===== BÉLGICA =====
+Kevin De Bruyne ; Bélgica
+Romelu Lukaku ; Bélgica
+Jérémy Doku ; Bélgica

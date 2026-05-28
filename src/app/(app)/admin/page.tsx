@@ -6,6 +6,7 @@ import { formatarData } from '@/lib/tipos';
 import { criarTime, apagarTime, criarJogo, apagarJogo, lancarPlacar, limparPlacar } from './acoes';
 import BotaoImportar from './BotaoImportar';
 import BotaoJogadores from './BotaoJogadores';
+import GestaoJogadores from './GestaoJogadores';
 import GestaoMembros from './GestaoMembros';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,17 @@ export default async function PaginaAdmin() {
   const listaMembros = membros || [];
   const qtdPendentes = listaMembros.filter((m) => m.status === 'pendente').length;
 
+  // Jogadores cadastrados (manuais e/ou vindos da API) para a Gestão de Craques
+  const { data: jogadoresData } = await admin
+    .from('jogadores')
+    .select('id, nome, time_nome, bandeira')
+    .order('time_nome')
+    .order('nome');
+  const listaJogadores = jogadoresData || [];
+  const timesSimples = listaTimes
+    .filter((t) => t.nome)
+    .map((t) => ({ nome: t.nome, bandeira: t.bandeira }));
+
   return (
     <main className="container" style={{ paddingTop: 22 }}>
       <h2 className="display" style={{ fontSize: 26, marginBottom: 4 }}>Painel do Admin ⚙️</h2>
@@ -49,6 +61,12 @@ export default async function PaginaAdmin() {
       <section className="bloco">
         <h3 className="bloco-tit">⭐ Jogadores (tela de Craques)</h3>
         <BotaoJogadores />
+        <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px dashed var(--line)' }}>
+          <h4 style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10, fontWeight: 700 }}>
+            ✍️ Cadastro manual (até a API ter os convocados)
+          </h4>
+          <GestaoJogadores jogadores={listaJogadores} times={timesSimples} />
+        </div>
       </section>
 
       {/* MEMBROS */}
