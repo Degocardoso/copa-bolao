@@ -11,27 +11,7 @@ type Membro = {
 };
 
 function iniciais(nome: string) {
-  return nome
-    .split(' ')
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join('')
-    .toUpperCase();
-}
-
-function AvatarLetra({ nome }: { nome: string }) {
-  return (
-    <div
-      style={{
-        width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-        background: 'var(--grass-deep)', color: '#04140a',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontWeight: 800, fontSize: 14,
-      }}
-    >
-      {iniciais(nome)}
-    </div>
-  );
+  return nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 }
 
 export default function GestaoMembros({ membros }: { membros: Membro[] }) {
@@ -42,11 +22,16 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
   function Linha({ m }: { m: Membro }) {
     return (
       <div className={`m-row m-row-${m.status}`}>
-        <AvatarLetra nome={m.nome} />
+        {/* Avatar */}
+        <div className="avatar">{iniciais(m.nome)}</div>
+
+        {/* Nome + email — ocupa o espaço livre */}
         <div className="m-info">
           <span className="m-nome">{m.nome}</span>
           <span className="m-email mono">{m.email}</span>
         </div>
+
+        {/* Badge + botões — coluna direita, alinhada */}
         <div className="m-side">
           <span className={`badge badge-${m.status}`}>
             {m.status === 'pendente' ? 'Pendente' : m.status === 'aprovado' ? 'Aprovado' : 'Bloqueado'}
@@ -81,23 +66,21 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
 
   return (
     <div className="membros-wrap">
-      {/* Resumo rápido */}
+      {/* Resumo */}
       <div className="resumo">
-        <div className="resumo-item pend">
-          <span className="resumo-num">{pendentes.length}</span>
-          <span className="resumo-label">aguardando</span>
-        </div>
-        <div className="resumo-item ok">
-          <span className="resumo-num">{aprovados.length}</span>
-          <span className="resumo-label">aprovados</span>
-        </div>
-        <div className="resumo-item blo">
-          <span className="resumo-num">{bloqueados.length}</span>
-          <span className="resumo-label">bloqueados</span>
-        </div>
+        {[
+          { label: 'aguardando', num: pendentes.length, cls: 'pend' },
+          { label: 'aprovados',  num: aprovados.length,  cls: 'ok'   },
+          { label: 'bloqueados', num: bloqueados.length, cls: 'blo'  },
+        ].map(({ label, num, cls }) => (
+          <div key={label} className={`resumo-item ${cls}`}>
+            <span className="resumo-num">{num}</span>
+            <span className="resumo-label">{label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Pendentes em destaque */}
+      {/* Pendentes */}
       {pendentes.length > 0 && (
         <div className="grupo grupo-pend">
           <div className="grupo-tit pend">⏳ Aguardando aprovação ({pendentes.length})</div>
@@ -128,29 +111,25 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
       )}
 
       <style jsx>{`
-        .membros-wrap { display: flex; flex-direction: column; gap: 0; }
+        .membros-wrap { display: flex; flex-direction: column; }
 
-        .resumo {
-          display: flex; gap: 10px; margin-bottom: 18px;
-        }
+        /* ── Resumo ── */
+        .resumo { display: flex; gap: 10px; margin-bottom: 18px; }
         .resumo-item {
           flex: 1; display: flex; flex-direction: column; align-items: center;
           padding: 12px 8px; border-radius: 12px; border: 1px solid var(--line);
           background: var(--bg-2);
         }
-        .resumo-num { font-size: 22px; font-weight: 800; line-height: 1; }
+        .resumo-num  { font-size: 22px; font-weight: 800; line-height: 1; }
         .resumo-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; font-weight: 600; }
-        .resumo-item.pend .resumo-num { color: var(--gold); }
-        .resumo-item.pend .resumo-label { color: var(--gold); opacity: 0.7; }
-        .resumo-item.ok .resumo-num { color: var(--grass-bright); }
-        .resumo-item.ok .resumo-label { color: var(--grass-bright); opacity: 0.7; }
-        .resumo-item.blo .resumo-num { color: var(--red); }
-        .resumo-item.blo .resumo-label { color: var(--red); opacity: 0.7; }
+        .pend .resumo-num, .pend .resumo-label { color: var(--gold); }
+        .ok   .resumo-num, .ok   .resumo-label { color: var(--grass-bright); }
+        .blo  .resumo-num, .blo  .resumo-label { color: var(--red); }
 
+        /* ── Grupos ── */
         .grupo { margin-bottom: 16px; }
         .grupo-pend {
-          background: rgba(244,196,48,0.05);
-          border: 1px solid rgba(244,196,48,0.2);
+          background: rgba(244,196,48,0.05); border: 1px solid rgba(244,196,48,0.25);
           border-radius: 13px; padding: 12px;
         }
         .grupo-tit {
@@ -158,46 +137,54 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
           letter-spacing: 0.07em; margin-bottom: 10px;
         }
         .grupo-tit.pend { color: var(--gold); }
-        .grupo-tit.ok { color: var(--grass-bright); }
-        .grupo-tit.blo { color: var(--red); }
+        .grupo-tit.ok   { color: var(--grass-bright); }
+        .grupo-tit.blo  { color: var(--red); }
 
+        /* ── Linha de membro ── */
         .m-row {
-          display: flex; align-items: center; gap: 12px;
+          display: grid;
+          grid-template-columns: 38px 1fr auto;
+          align-items: center;
+          gap: 12px;
           background: var(--bg-2); border: 1px solid var(--line);
-          border-radius: 12px; padding: 13px 14px; margin-bottom: 8px;
+          border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
         }
         .m-row:last-child { margin-bottom: 0; }
-        .m-row-pendente { border-color: rgba(244,196,48,0.3); }
-        .m-info { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-        .m-nome { font-weight: 700; font-size: 14.5px; line-height: 1.2; }
-        .m-email { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .m-row-pendente { border-color: rgba(244,196,48,0.35); }
 
+        /* Avatar */
+        .avatar {
+          width: 38px; height: 38px; border-radius: 50%;
+          background: var(--grass-deep); color: #04140a;
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 800; font-size: 14px;
+        }
+
+        /* Info */
+        .m-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .m-nome  { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .m-email { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Coluna direita: badge em cima, botões embaixo */
         .m-side {
-          display: flex; flex-direction: column; align-items: flex-end;
-          gap: 8px; flex-shrink: 0;
+          display: flex; flex-direction: column;
+          align-items: flex-end; gap: 8px; flex-shrink: 0;
         }
         .badge {
           font-size: 9px; font-weight: 800; text-transform: uppercase;
-          letter-spacing: 0.06em; padding: 3px 9px; border-radius: 999px;
-          white-space: nowrap;
+          letter-spacing: 0.06em; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
         }
         .badge-pendente { background: rgba(244,196,48,0.15); color: var(--gold); }
-        .badge-aprovado { background: rgba(29,185,84,0.14); color: var(--grass-bright); }
+        .badge-aprovado { background: rgba(29,185,84,0.14);  color: var(--grass-bright); }
         .badge-bloqueado { background: rgba(255,91,91,0.13); color: var(--red); }
 
         .acoes { display: flex; gap: 6px; }
         .mini { padding: 7px 13px; font-size: 12px; font-weight: 700; white-space: nowrap; }
         .btn-danger {
           background: rgba(255,91,91,0.1); border: 1px solid rgba(255,91,91,0.3);
-          color: var(--red); border-radius: 10px; cursor: pointer;
+          color: var(--red); border-radius: 10px; cursor: pointer; font-weight: 700;
         }
         .btn-danger:hover { background: rgba(255,91,91,0.2); }
-
-        @media (max-width: 460px) {
-          .m-row { flex-wrap: wrap; }
-          .m-side { width: 100%; flex-direction: row; align-items: center;
-            justify-content: space-between; padding-left: 50px; }
-        }
       `}</style>
     </div>
   );
