@@ -1,19 +1,20 @@
 // ============================================================
 //  SIMULADOR — Pontuação do mata-mata (regra mista)
 //
-//  Por cada time que o usuário colocou nas oitavas e chegou lá de verdade: +1
-//  Por quem avança (a seleção que a pessoa levou à fase chegou lá de verdade):
-//    quartas 2 · semi 3 · final/vice 5 · campeão 10
-//  Bônus de placar: +3 quando o confronto imaginado aconteceu na vida real
-//    NA MESMA FASE e a pessoa cravou o placar.
+//  Copa 2026: avos → oitavas → quartas → semi → final
+//
+//  Por cada time que o usuário colocou nos avos e chegou lá: +1
+//  Por quem avança (vencedor chegou à fase seguinte):
+//    oitavas +1 · quartas +2 · semi +3 · final/vice +5 · campeão +10
+//  Bônus de placar: +3 se o confronto ocorreu na MESMA FASE e cravou o placar.
 // ============================================================
 
 export const PONTOS_FASE: Record<string, number> = {
-  oitavas: 1,   // chegar às oitavas
-  quartas: 2,   // chegar às quartas
-  semi: 3,      // chegar à semi
-  final: 5,     // chegar à final (vice)
-  campeao: 10,  // ser campeão
+  oitavas: 1,   // avançou dos avos para as oitavas
+  quartas: 2,   // avançou das oitavas para as quartas
+  semi: 3,      // avançou das quartas para a semi
+  final: 5,     // chegou à final (vice-campeão)
+  campeao: 10,  // campeão
 };
 
 export type PalpiteMata = {
@@ -26,13 +27,8 @@ export type PalpiteMata = {
   gols_b: number | null;
 };
 
-// Quem REALMENTE chegou a cada fase na vida real, e o campeão real.
-// Derivado dos jogos de mata-mata oficiais (vindos da API).
 export type RealidadeMata = {
-  // conjunto de timeIds que alcançaram cada fase
-  alcancou: Record<string, Set<number>>; // 'oitavas' | 'quartas' | 'semi' | 'final' | 'campeao'
-  // resultados reais por "par de times" para o bônus de placar:
-  // chave "menorId-maiorId" -> { golsMenor, golsMaior }
+  alcancou: Record<string, Set<number>>; // 'avos' | 'oitavas' | 'quartas' | 'semi' | 'final' | 'campeao'
   placares: Map<string, { a: number; b: number; timeA: number; timeB: number }>;
 };
 
@@ -40,7 +36,6 @@ function chavePar(t1: number, t2: number): string {
   return [t1, t2].sort((a, b) => a - b).join('-');
 }
 
-// Calcula os pontos de mata-mata de UMA pessoa.
 export function pontosMataMata(
   palpites: PalpiteMata[],
   real: RealidadeMata
@@ -48,22 +43,23 @@ export function pontosMataMata(
   let total = 0;
   const detalhes: string[] = [];
 
-  // 1a) +1 para cada time que o usuário colocou nas oitavas e chegou lá de verdade.
-  palpites.filter((p) => p.fase === 'oitavas').forEach((p) => {
-    const chegouOitavas = real.alcancou['oitavas'];
-    if (!chegouOitavas) return;
-    if (p.time_a && chegouOitavas.has(p.time_a)) {
+  // 1a) +1 para cada time que o usuário colocou nos avos e chegou lá de verdade.
+  palpites.filter((p) => p.fase === 'avos').forEach((p) => {
+    const chegouAvos = real.alcancou['avos'];
+    if (!chegouAvos) return;
+    if (p.time_a && chegouAvos.has(p.time_a)) {
       total += 1;
-      detalhes.push('oitavas time_a: +1');
+      detalhes.push('avos time_a: +1');
     }
-    if (p.time_b && chegouOitavas.has(p.time_b)) {
+    if (p.time_b && chegouAvos.has(p.time_b)) {
       total += 1;
-      detalhes.push('oitavas time_b: +1');
+      detalhes.push('avos time_b: +1');
     }
   });
 
   // 1b) Pontos por quem avança (vencedor levado à próxima fase).
   const proximaFase: Record<string, string> = {
+    avos: 'oitavas',
     oitavas: 'quartas',
     quartas: 'semi',
     semi: 'final',
@@ -86,10 +82,8 @@ export function pontosMataMata(
   palpites.forEach((p) => {
     if (p.time_a == null || p.time_b == null) return;
     if (p.gols_a == null || p.gols_b == null) return;
-    // chave inclui fase para garantir que o confronto ocorreu na fase correta
     const real_ = real.placares.get(`${p.fase}-${chavePar(p.time_a, p.time_b)}`);
-    if (!real_) return; // esse confronto não aconteceu nessa fase na vida real
-    // alinha os gols ao mesmo lado dos times
+    if (!real_) return;
     let golsRealA: number, golsRealB: number;
     if (real_.timeA === p.time_a) {
       golsRealA = real_.a; golsRealB = real_.b;

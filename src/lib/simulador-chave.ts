@@ -1,8 +1,7 @@
 // ============================================================
 //  SIMULADOR — Montagem da chave do mata-mata
-//  Pega as classificações dos grupos (1º, 2º e melhores 3ºs) e
-//  monta os confrontos das oitavas, de forma consistente e igual
-//  para todos. As fases seguintes saem dos palpites da pessoa.
+//  Copa 2026: 48 times → 32 avançam → estrutura de 5 fases:
+//  avos (32→16) · oitavas (16→8) · quartas · semi · final
 // ============================================================
 
 import type { Time } from './tipos';
@@ -10,29 +9,26 @@ import type { ClassificacaoGrupo, LinhaGrupo } from './simulador-grupos';
 import { melhoresTerceiros } from './simulador-grupos';
 
 export type Confronto = {
-  id: string;          // identificador estável do confronto (ex: 'oitavas-1')
-  fase: 'oitavas' | 'quartas' | 'semi' | 'final' | 'terceiro';
-  ordem: number;       // posição na fase (1, 2, 3...)
+  id: string;
+  fase: 'avos' | 'oitavas' | 'quartas' | 'semi' | 'final' | 'terceiro';
+  ordem: number;
   timeA: number | null;
   timeB: number | null;
 };
 
 export type Chave = {
+  avos: Confronto[];
   oitavas: Confronto[];
   quartas: Confronto[];
   semi: Confronto[];
   final: Confronto[];
 };
 
-// Quantos times classificam por posição (formato 2026: 32 no mata-mata).
-// 12 primeiros + 12 segundos + 8 melhores terceiros = 32.
+// Copa 2026: 12 grupos → top 2 + 8 melhores terceiros = 32 times no mata-mata
 const QTD_MELHORES_TERCEIROS = 8;
 
-// Monta as OITAVAS a partir das classificações de grupo.
-// Estratégia consistente: lista os 32 classificados numa ordem fixa
-// (1ºs por grupo, 2ºs por grupo, melhores 3ºs) e cruza extremos
-// (1º x 32º, 2º x 31º...), garantindo chave equilibrada e idêntica p/ todos.
-export function montarOitavas(
+// Monta os 32 AVOS DE FINAL (primeira fase do mata-mata, 16 confrontos).
+export function montarAvos(
   classificacoes: ClassificacaoGrupo[],
   timePorId: Map<number, Time>
 ): Confronto[] {
@@ -44,8 +40,6 @@ export function montarOitavas(
   });
   const terceiros = melhoresTerceiros(classificacoes, QTD_MELHORES_TERCEIROS, timePorId);
 
-  // ordem de "força": todos os 1ºs, depois 2ºs, depois 3ºs.
-  // dentro de cada bloco, ordena por desempenho (pontos/saldo/gols).
   const ordenarBloco = (arr: LinhaGrupo[]) =>
     [...arr].sort((a, b) =>
       b.pontos - a.pontos || b.saldo - a.saldo || b.golsPro - a.golsPro
@@ -57,22 +51,18 @@ export function montarOitavas(
     ...ordenarBloco(terceiros),
   ];
 
-  // Monta as oitavas usando a ORDEM DE BRACKET de torneio, para que os
-  // melhores seeds fiquem em lados opostos da chave (1 e 2 só se encontram
-  // na final, 1 e 3/4 só na semi, etc.) — como numa Copa de verdade.
   const n = seeds.length;
-  const ordemBracket = ordemDeChaveamento(n); // ex p/ 16: [1,16,8,9,4,13,5,12,2,15,...]
+  const ordemBracket = ordemDeChaveamento(n);
   const confrontos: Confronto[] = [];
   const pares = Math.floor(n / 2);
   for (let i = 0; i < pares; i++) {
-    // ordemBracket lista os "slots" em pares: posição 2i e 2i+1 se enfrentam
-    const seedA = ordemBracket[i * 2] - 1;     // -1 porque seeds é 0-indexado
+    const seedA = ordemBracket[i * 2] - 1;
     const seedB = ordemBracket[i * 2 + 1] - 1;
     const a = seeds[seedA];
     const b = seeds[seedB];
     confrontos.push({
-      id: `oitavas-${i + 1}`,
-      fase: 'oitavas',
+      id: `avos-${i + 1}`,
+      fase: 'avos',
       ordem: i + 1,
       timeA: a ? a.timeId : null,
       timeB: b ? b.timeId : null,
@@ -81,10 +71,9 @@ export function montarOitavas(
   return confrontos;
 }
 
-// Gera a ordem padrão de chaveamento (standard seeding bracket) para `tamanho`
-// participantes (potência de 2). Garante que seed 1 e seed 2 fiquem em metades
-// opostas, encontrando-se só na final; 1 e 4 só na semi; e assim por diante.
-// Ex.: tamanho 4 -> [1,4,2,3]; tamanho 8 -> [1,8,4,5,2,7,3,6].
+// Mantém o alias para compatibilidade com imports existentes
+export const montarOitavas = montarAvos;
+
 function ordemDeChaveamento(tamanho: number): number[] {
   let rodada = [1, 2];
   while (rodada.length < tamanho) {
@@ -92,25 +81,20 @@ function ordemDeChaveamento(tamanho: number): number[] {
     const proxima: number[] = [];
     for (const s of rodada) {
       proxima.push(s);
-      proxima.push(n + 1 - s); // o complemento (parceiro de confronto)
+      proxima.push(n + 1 - s);
     }
     rodada = proxima;
   }
   return rodada;
 }
 
-// Cria os confrontos vazios das fases seguintes (preenchidos pelos
-// palpites de quem vence cada jogo). A árvore conecta de forma fixa:
-// vencedor de oitavas-1 e oitavas-2 -> quartas-1, e assim por diante.
-export function estruturaFasesSeguintes(qtdOitavas: number): {
+export function estruturaFasesSeguintes(qtdAvos: number): {
+  oitavas: Confronto[];
   quartas: Confronto[];
   semi: Confronto[];
   final: Confronto[];
 } {
-  const fazer = (
-    fase: Confronto['fase'],
-    qtd: number
-  ): Confronto[] =>
+  const fazer = (fase: Confronto['fase'], qtd: number): Confronto[] =>
     Array.from({ length: qtd }, (_, i) => ({
       id: `${fase}-${i + 1}`,
       fase,
@@ -119,21 +103,25 @@ export function estruturaFasesSeguintes(qtdOitavas: number): {
       timeB: null,
     }));
 
-  const qQuartas = Math.floor(qtdOitavas / 2);
+  const qOitavas = Math.floor(qtdAvos / 2);
+  const qQuartas = Math.floor(qOitavas / 2);
   const qSemi = Math.floor(qQuartas / 2);
   return {
+    oitavas: fazer('oitavas', qOitavas),
     quartas: fazer('quartas', qQuartas),
     semi: fazer('semi', qSemi),
     final: fazer('final', 1),
   };
 }
 
-// Diz para qual confronto da próxima fase vai o vencedor de um confronto.
-// Ex: vencedor de oitavas-1 e oitavas-2 vão para quartas-1.
+// Cadeia de progressão: avos→oitavas→quartas→semi→final
 export function proximoConfronto(
   fase: Confronto['fase'],
   ordem: number
 ): { fase: Confronto['fase']; ordem: number; lado: 'A' | 'B' } | null {
+  if (fase === 'avos') {
+    return { fase: 'oitavas', ordem: Math.ceil(ordem / 2), lado: ordem % 2 === 1 ? 'A' : 'B' };
+  }
   if (fase === 'oitavas') {
     return { fase: 'quartas', ordem: Math.ceil(ordem / 2), lado: ordem % 2 === 1 ? 'A' : 'B' };
   }
@@ -143,5 +131,5 @@ export function proximoConfronto(
   if (fase === 'semi') {
     return { fase: 'final', ordem: 1, lado: ordem % 2 === 1 ? 'A' : 'B' };
   }
-  return null; // final não tem próximo
+  return null;
 }

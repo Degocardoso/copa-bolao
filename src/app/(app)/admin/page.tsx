@@ -242,9 +242,10 @@ export default async function PaginaAdmin() {
             <label>Fase</label>
             <select name="fase" className="inp">
               <option value="grupos">Fase de grupos</option>
-              <option value="oitavas">Oitavas</option>
-              <option value="quartas">Quartas</option>
-              <option value="semi">Semi</option>
+              <option value="avos">32 Avos de Final</option>
+              <option value="oitavas">Oitavas de Final</option>
+              <option value="quartas">Quartas de Final</option>
+              <option value="semi">Semifinal</option>
               <option value="final">Final</option>
             </select>
           </div>

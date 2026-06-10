@@ -5,7 +5,7 @@ import Bandeira from '@/components/Bandeira';
 import type { Time, PalpiteMataSalvo } from '@/lib/tipos';
 import type { Jogo } from '@/lib/tipos';
 import { calcularGrupos, type Palpitinho } from '@/lib/simulador-grupos';
-import { montarOitavas, proximoConfronto, type Confronto } from '@/lib/simulador-chave';
+import { montarAvos, proximoConfronto, type Confronto } from '@/lib/simulador-chave';
 import { salvarMataMata, type PalpiteMataInput } from './acoes-mata';
 
 type Placar = { casa: number; fora: number };
@@ -56,30 +56,30 @@ export default function SecaoMataMata({
   // só libera o mata-mata com todos os grupos SALVOS no banco
   const gruposCompletos = totalGrupo > 0 && salvosGrupo >= totalGrupo;
 
-  // calcula a chave a partir dos placares de grupo atuais
-  const oitavas = useMemo(() => {
+  // calcula a chave a partir dos placares de grupo atuais (produz os avos)
+  const avos = useMemo(() => {
     if (!gruposCompletos) return [];
     const palpitinhos: Palpitinho[] = Object.entries(placaresGrupo).map(
       ([jogoId, pl]) => ({ jogo_id: Number(jogoId), gols_casa: pl.casa, gols_fora: pl.fora })
     );
     const classif = calcularGrupos(jogos, times, palpitinhos);
-    return montarOitavas(classif, mapaTimes);
+    return montarAvos(classif, mapaTimes);
   }, [gruposCompletos, placaresGrupo, jogos, times, mapaTimes]);
 
-  // monta a árvore completa: oitavas (fixas) + fases seguintes (vêm dos vencedores)
+  // monta a árvore completa: avos (fixos) + oitavas + quartas + semi + final
   const arvore = useMemo(() => {
-    if (oitavas.length === 0) return null;
+    if (avos.length === 0) return null;
 
-    // mapa de confronto -> {timeA, timeB}
     const confrontos = new Map<string, Confronto>();
-    oitavas.forEach((c) => confrontos.set(c.id, { ...c }));
+    avos.forEach((c) => confrontos.set(c.id, { ...c }));
 
-    // estrutura vazia das fases seguintes
-    const qtd = oitavas.length;
+    // cria estrutura vazia das fases seguintes
+    const qtdAvos = avos.length;
     const fases: { fase: Confronto['fase']; n: number }[] = [
-      { fase: 'quartas', n: Math.floor(qtd / 2) },
-      { fase: 'semi', n: Math.floor(qtd / 4) },
-      { fase: 'final', n: 1 },
+      { fase: 'oitavas', n: Math.floor(qtdAvos / 2) },
+      { fase: 'quartas', n: Math.floor(qtdAvos / 4) },
+      { fase: 'semi',    n: Math.floor(qtdAvos / 8) },
+      { fase: 'final',   n: 1 },
     ];
     fases.forEach(({ fase, n }) => {
       for (let i = 1; i <= n; i++) {
@@ -89,7 +89,7 @@ export default function SecaoMataMata({
       }
     });
 
-    // propaga os vencedores palpitados para as fases seguintes
+    // propaga vencedores fase a fase
     const propagar = (lista: Confronto[]) => {
       lista.forEach((c) => {
         const pal = palpites[c.id];
@@ -105,17 +105,17 @@ export default function SecaoMataMata({
         }
       });
     };
-    // ordem de propagação: oitavas -> quartas -> semi
-    propagar(oitavas);
-    const quartas = ['quartas-1','quartas-2','quartas-3','quartas-4','quartas-5','quartas-6','quartas-7','quartas-8']
-      .map((id) => confrontos.get(id)).filter(Boolean) as Confronto[];
-    propagar(quartas);
-    const semis = ['semi-1','semi-2','semi-3','semi-4']
-      .map((id) => confrontos.get(id)).filter(Boolean) as Confronto[];
-    propagar(semis);
+
+    const listarFase = (fase: string, n: number) =>
+      Array.from({ length: n }, (_, i) => confrontos.get(`${fase}-${i + 1}`)).filter(Boolean) as Confronto[];
+
+    propagar(avos);
+    propagar(listarFase('oitavas', Math.floor(qtdAvos / 2)));
+    propagar(listarFase('quartas', Math.floor(qtdAvos / 4)));
+    propagar(listarFase('semi',    Math.floor(qtdAvos / 8)));
 
     return confrontos;
-  }, [oitavas, palpites]);
+  }, [avos, palpites]);
 
   function nomeTime(id: number | null) {
     if (!id) return { nome: 'A definir', bandeira: '⏳' };
@@ -187,10 +187,11 @@ export default function SecaoMataMata({
   }
 
   const fasesOrdem: { fase: Confronto['fase']; titulo: string }[] = [
+    { fase: 'avos',    titulo: '32 AVOS DE FINAL' },
     { fase: 'oitavas', titulo: 'OITAVAS DE FINAL' },
     { fase: 'quartas', titulo: 'QUARTAS DE FINAL' },
-    { fase: 'semi', titulo: 'SEMIFINAIS' },
-    { fase: 'final', titulo: 'FINAL' },
+    { fase: 'semi',    titulo: 'SEMIFINAIS' },
+    { fase: 'final',   titulo: 'FINAL' },
   ];
 
   const todosConfrontos = arvore ? Array.from(arvore.values()) : [];

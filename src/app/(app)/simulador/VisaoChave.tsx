@@ -88,8 +88,8 @@ export default function VisaoChave({
         ))}
       </div>
 
-      {/* oitavas */}
-      <h3 className="bloco-tit mono" style={{ marginTop: 26 }}>OITAVAS DE FINAL</h3>
+      {/* avos */}
+      <h3 className="bloco-tit mono" style={{ marginTop: 26 }}>32 AVOS DE FINAL</h3>
       <div className="oitavas">
         {oitavas.map((c) => {
           const a = nomeTime(c.timeA);

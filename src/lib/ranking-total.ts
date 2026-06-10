@@ -83,6 +83,7 @@ export async function calcularRankingTotal(supabase: SupabaseClient): Promise<Li
 
 function buildRealidade(jogos: Record<string, unknown>[]): RealidadeMata {
   const alcancou: Record<string, Set<number>> = {
+    avos: new Set(),
     oitavas: new Set(),
     quartas: new Set(),
     semi: new Set(),
