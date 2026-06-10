@@ -20,46 +20,52 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
   const bloqueados = membros.filter((m) => m.status === 'bloqueado');
 
   function Linha({ m }: { m: Membro }) {
+    const botoes = (
+      <div className="acoes">
+        {m.status !== 'aprovado' && (
+          <form action={definirStatusUsuario} className="f">
+            <input type="hidden" name="id" value={m.id} />
+            <input type="hidden" name="status" value="aprovado" />
+            <button className="btn btn-primary mini">✓ Aprovar</button>
+          </form>
+        )}
+        {m.status !== 'bloqueado' && (
+          <form action={definirStatusUsuario} className="f">
+            <input type="hidden" name="id" value={m.id} />
+            <input type="hidden" name="status" value="bloqueado" />
+            <button className="btn-danger mini">Bloquear</button>
+          </form>
+        )}
+        {m.status === 'bloqueado' && (
+          <form action={definirStatusUsuario} className="f">
+            <input type="hidden" name="id" value={m.id} />
+            <input type="hidden" name="status" value="pendente" />
+            <button className="btn btn-ghost mini">Reverter</button>
+          </form>
+        )}
+      </div>
+    );
+
     return (
       <div className={`m-row m-row-${m.status}`}>
-        {/* Avatar */}
-        <div className="avatar">{iniciais(m.nome)}</div>
-
-        {/* Nome + email — ocupa o espaço livre */}
-        <div className="m-info">
-          <span className="m-nome">{m.nome}</span>
-          <span className="m-email mono">{m.email}</span>
-        </div>
-
-        {/* Badge + botões — coluna direita, alinhada */}
-        <div className="m-side">
-          <span className={`badge badge-${m.status}`}>
-            {m.status === 'pendente' ? 'Pendente' : m.status === 'aprovado' ? 'Aprovado' : 'Bloqueado'}
-          </span>
-          <div className="acoes">
-            {m.status !== 'aprovado' && (
-              <form action={definirStatusUsuario}>
-                <input type="hidden" name="id" value={m.id} />
-                <input type="hidden" name="status" value="aprovado" />
-                <button className="btn btn-primary mini">✓ Aprovar</button>
-              </form>
-            )}
-            {m.status !== 'bloqueado' && (
-              <form action={definirStatusUsuario}>
-                <input type="hidden" name="id" value={m.id} />
-                <input type="hidden" name="status" value="bloqueado" />
-                <button className="btn-danger mini">Bloquear</button>
-              </form>
-            )}
-            {m.status === 'bloqueado' && (
-              <form action={definirStatusUsuario}>
-                <input type="hidden" name="id" value={m.id} />
-                <input type="hidden" name="status" value="pendente" />
-                <button className="btn btn-ghost mini">Reverter</button>
-              </form>
-            )}
+        {/* Topo: avatar + nome/email + badge */}
+        <div className="m-top">
+          <div className="avatar">{iniciais(m.nome)}</div>
+          <div className="m-info">
+            <span className="m-nome">{m.nome}</span>
+            <span className="m-email mono">{m.email}</span>
+          </div>
+          <div className="m-right">
+            <span className={`badge badge-${m.status}`}>
+              {m.status === 'pendente' ? 'Pendente' : m.status === 'aprovado' ? 'Aprovado' : 'Bloqueado'}
+            </span>
+            {/* botões à direita no desktop */}
+            <div className="acoes-desktop">{botoes}</div>
           </div>
         </div>
+
+        {/* botões embaixo no mobile */}
+        <div className="acoes-mobile">{botoes}</div>
       </div>
     );
   }
@@ -120,7 +126,7 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
           padding: 12px 8px; border-radius: 12px; border: 1px solid var(--line);
           background: var(--bg-2);
         }
-        .resumo-num  { font-size: 22px; font-weight: 800; line-height: 1; }
+        .resumo-num   { font-size: 22px; font-weight: 800; line-height: 1; }
         .resumo-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; font-weight: 600; }
         .pend .resumo-num, .pend .resumo-label { color: var(--gold); }
         .ok   .resumo-num, .ok   .resumo-label { color: var(--grass-bright); }
@@ -140,51 +146,59 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
         .grupo-tit.ok   { color: var(--grass-bright); }
         .grupo-tit.blo  { color: var(--red); }
 
-        /* ── Linha de membro ── */
+        /* ── Card de membro ── */
         .m-row {
-          display: grid;
-          grid-template-columns: 38px 1fr auto;
-          align-items: center;
-          gap: 12px;
           background: var(--bg-2); border: 1px solid var(--line);
-          border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+          border-radius: 12px; padding: 12px 13px; margin-bottom: 8px;
         }
         .m-row:last-child { margin-bottom: 0; }
         .m-row-pendente { border-color: rgba(244,196,48,0.35); }
 
-        /* Avatar */
+        /* Topo */
+        .m-top { display: flex; align-items: center; gap: 11px; }
         .avatar {
-          width: 38px; height: 38px; border-radius: 50%;
+          width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
           background: var(--grass-deep); color: #04140a;
           display: flex; align-items: center; justify-content: center;
           font-weight: 800; font-size: 14px;
         }
+        .m-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .m-nome  { font-weight: 700; font-size: 14px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .m-email { font-size: 11px; line-height: 1.25; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Info */
-        .m-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-        .m-nome  { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .m-email { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Lado direito (desktop): badge + botões */
+        .m-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
-        /* Coluna direita: badge em cima, botões embaixo */
-        .m-side {
-          display: flex; flex-direction: column;
-          align-items: flex-end; gap: 8px; flex-shrink: 0;
-        }
         .badge {
+          flex-shrink: 0;
           font-size: 9px; font-weight: 800; text-transform: uppercase;
           letter-spacing: 0.06em; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
         }
-        .badge-pendente { background: rgba(244,196,48,0.15); color: var(--gold); }
-        .badge-aprovado { background: rgba(29,185,84,0.14);  color: var(--grass-bright); }
-        .badge-bloqueado { background: rgba(255,91,91,0.13); color: var(--red); }
+        .badge-pendente  { background: rgba(244,196,48,0.15); color: var(--gold); }
+        .badge-aprovado  { background: rgba(29,185,84,0.14);  color: var(--grass-bright); }
+        .badge-bloqueado { background: rgba(255,91,91,0.13);  color: var(--red); }
 
-        .acoes { display: flex; gap: 6px; }
-        .mini { padding: 7px 13px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .acoes { display: flex; gap: 8px; }
+        .f { flex: 1; display: flex; }
+        .mini {
+          width: 100%; padding: 9px 14px; font-size: 12.5px; font-weight: 700;
+          white-space: nowrap; text-align: center;
+        }
         .btn-danger {
           background: rgba(255,91,91,0.1); border: 1px solid rgba(255,91,91,0.3);
-          color: var(--red); border-radius: 10px; cursor: pointer; font-weight: 700;
+          color: var(--red); border-radius: 10px; cursor: pointer;
         }
         .btn-danger:hover { background: rgba(255,91,91,0.2); }
+
+        /* Desktop: botões à direita, escondem os de baixo */
+        .acoes-mobile { display: none; }
+        .acoes-desktop .acoes { margin-top: 0; }
+
+        /* Mobile: botões descem pra linha embaixo dividindo o espaço */
+        @media (max-width: 560px) {
+          .acoes-desktop { display: none; }
+          .acoes-mobile { display: block; margin-top: 11px; }
+        }
       `}</style>
     </div>
   );
