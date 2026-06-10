@@ -3,13 +3,15 @@ import { criarClienteServidor } from '@/lib/supabase-server';
 import { ehAdmin, criarClienteAdmin } from '@/lib/supabase-admin';
 import type { Jogo, Time } from '@/lib/tipos';
 import { formatarData } from '@/lib/tipos';
-import { criarTime, apagarTime, criarJogo, apagarJogo, lancarPlacar, limparPlacar } from './acoes';
+import { criarTime, apagarTime, criarJogo, apagarJogo, lancarPlacar, limparPlacar, lancarPodio, limparPodio, editarConfronto } from './acoes';
 import BotaoImportar from './BotaoImportar';
 import BotaoJogadores from './BotaoJogadores';
 import GestaoJogadores from './GestaoJogadores';
 import GestaoMembros from './GestaoMembros';
 
 export const dynamic = 'force-dynamic';
+
+type JogadorSimples = { id: number; nome: string; time_nome: string; bandeira: string | null; gols_real: number | null; assist_real: number | null; pos_artilheiro: number | null; pos_assistencia: number | null };
 
 export default async function PaginaAdmin() {
   const supabase = criarClienteServidor();
@@ -27,7 +29,8 @@ export default async function PaginaAdmin() {
   const mapaTimes = new Map<number, Time>();
   listaTimes.forEach((t) => mapaTimes.set(t.id, t));
 
-  // Membros (todos os perfis), via service role para enxergar pendentes
+  const jogosMata = listaJogos.filter((j) => j.fase !== 'grupos');
+
   const admin = criarClienteAdmin();
   const { data: membros } = await admin
     .from('perfis')
@@ -36,16 +39,23 @@ export default async function PaginaAdmin() {
   const listaMembros = membros || [];
   const qtdPendentes = listaMembros.filter((m) => m.status === 'pendente').length;
 
-  // Jogadores cadastrados (manuais e/ou vindos da API) para a Gestão de Craques
   const { data: jogadoresData } = await admin
     .from('jogadores')
-    .select('id, nome, time_nome, bandeira')
+    .select('id, nome, time_nome, bandeira, gols_real, assist_real, pos_artilheiro, pos_assistencia')
     .order('time_nome')
     .order('nome');
-  const listaJogadores = jogadoresData || [];
+  const listaJogadores = (jogadoresData || []) as JogadorSimples[];
   const timesSimples = listaTimes
     .filter((t) => t.nome)
     .map((t) => ({ nome: t.nome, bandeira: t.bandeira }));
+
+  // Pódio atual (quem já tem posição definida)
+  const podioGols = listaJogadores
+    .filter((j) => j.pos_artilheiro != null)
+    .sort((a, b) => (a.pos_artilheiro ?? 99) - (b.pos_artilheiro ?? 99));
+  const podioAssist = listaJogadores
+    .filter((j) => j.pos_assistencia != null)
+    .sort((a, b) => (a.pos_assistencia ?? 99) - (b.pos_assistencia ?? 99));
 
   return (
     <main className="container" style={{ paddingTop: 22 }}>
@@ -67,6 +77,126 @@ export default async function PaginaAdmin() {
           </h4>
           <GestaoJogadores jogadores={listaJogadores} times={timesSimples} />
         </div>
+      </section>
+
+      {/* PÓDIO REAL — ARTILHEIROS */}
+      <section className="bloco bloco-destaque">
+        <h3 className="bloco-tit">🥅 Artilheiros reais (top 3)</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 14 }}>
+          Preencha ao final da Copa. A posição e os gols são usados para pontuar os palpites de Craques.
+        </p>
+
+        {[1, 2, 3].map((pos) => {
+          const atual = podioGols.find((j) => j.pos_artilheiro === pos);
+          return (
+            <div key={pos} className="podio-row">
+              <span className="podio-pos">{pos}º</span>
+              {atual ? (
+                <div className="podio-atual">
+                  <span>{atual.bandeira} <strong>{atual.nome}</strong> · {atual.gols_real} gols</span>
+                  <form action={limparPodio}>
+                    <input type="hidden" name="tipo" value="gols" />
+                    <input type="hidden" name="posicao" value={pos} />
+                    <button className="chip-x" title="Limpar">✕</button>
+                  </form>
+                </div>
+              ) : (
+                <form action={lancarPodio} className="podio-form">
+                  <input type="hidden" name="tipo" value="gols" />
+                  <input type="hidden" name="posicao" value={pos} />
+                  <select name="jogador_id" className="inp inp-select" required>
+                    <option value="">Escolher jogador…</option>
+                    {listaJogadores.map((j) => (
+                      <option key={j.id} value={j.id}>{j.bandeira} {j.nome} ({j.time_nome})</option>
+                    ))}
+                  </select>
+                  <input type="number" name="qtd" min={0} max={50} placeholder="Gols" className="inp inp-qtd" required />
+                  <button className="btn btn-gold" style={{ padding: '9px 14px', fontSize: 13 }}>Salvar</button>
+                </form>
+              )}
+            </div>
+          );
+        })}
+      </section>
+
+      {/* PÓDIO REAL — ASSISTÊNCIAS */}
+      <section className="bloco bloco-destaque">
+        <h3 className="bloco-tit">🎯 Assistências reais (top 3)</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 14 }}>
+          Igual ao artilheiro, mas para assistências.
+        </p>
+
+        {[1, 2, 3].map((pos) => {
+          const atual = podioAssist.find((j) => j.pos_assistencia === pos);
+          return (
+            <div key={pos} className="podio-row">
+              <span className="podio-pos">{pos}º</span>
+              {atual ? (
+                <div className="podio-atual">
+                  <span>{atual.bandeira} <strong>{atual.nome}</strong> · {atual.assist_real} assist.</span>
+                  <form action={limparPodio}>
+                    <input type="hidden" name="tipo" value="assist" />
+                    <input type="hidden" name="posicao" value={pos} />
+                    <button className="chip-x" title="Limpar">✕</button>
+                  </form>
+                </div>
+              ) : (
+                <form action={lancarPodio} className="podio-form">
+                  <input type="hidden" name="tipo" value="assist" />
+                  <input type="hidden" name="posicao" value={pos} />
+                  <select name="jogador_id" className="inp inp-select" required>
+                    <option value="">Escolher jogador…</option>
+                    {listaJogadores.map((j) => (
+                      <option key={j.id} value={j.id}>{j.bandeira} {j.nome} ({j.time_nome})</option>
+                    ))}
+                  </select>
+                  <input type="number" name="qtd" min={0} max={50} placeholder="Assist." className="inp inp-qtd" required />
+                  <button className="btn btn-gold" style={{ padding: '9px 14px', fontSize: 13 }}>Salvar</button>
+                </form>
+              )}
+            </div>
+          );
+        })}
+      </section>
+
+      {/* CONFRONTOS DO MATA-MATA REAL */}
+      <section className="bloco">
+        <h3 className="bloco-tit">🗓️ Confrontos do mata-mata real</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 14 }}>
+          Edite os times quando a FIFA definir os confrontos reais (caso a importação automática demore).
+        </p>
+        {jogosMata.length === 0 ? (
+          <p style={{ color: 'var(--text-faint)', fontSize: 13 }}>Nenhum jogo de mata-mata cadastrado ainda.</p>
+        ) : (
+          <div className="jlista">
+            {jogosMata.map((j) => {
+              const casa = j.time_casa ? mapaTimes.get(j.time_casa) : null;
+              const fora = j.time_fora ? mapaTimes.get(j.time_fora) : null;
+              return (
+                <div key={j.id} className="jrow">
+                  <div className="jrow-meta mono" style={{ marginBottom: 8 }}>
+                    {j.rodada || j.fase} · {formatarData(j.inicio)}
+                  </div>
+                  <form action={editarConfronto} className="confronto-form">
+                    <input type="hidden" name="id" value={j.id} />
+                    <select name="time_casa" className="inp" defaultValue={j.time_casa ?? ''}>
+                      <option value="">— a definir —</option>
+                      {listaTimes.map((t) => <option key={t.id} value={t.id}>{t.bandeira} {t.nome}</option>)}
+                    </select>
+                    <span style={{ color: 'var(--text-faint)', fontWeight: 700 }}>×</span>
+                    <select name="time_fora" className="inp" defaultValue={j.time_fora ?? ''}>
+                      <option value="">— a definir —</option>
+                      {listaTimes.map((t) => <option key={t.id} value={t.id}>{t.bandeira} {t.nome}</option>)}
+                    </select>
+                    <button className="btn btn-primary" style={{ padding: '9px 14px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                      {casa && fora ? 'Atualizar' : 'Definir'}
+                    </button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* MEMBROS */}
@@ -107,7 +237,10 @@ export default async function PaginaAdmin() {
             <label>Fase</label>
             <select name="fase" className="inp">
               <option value="grupos">Fase de grupos</option>
-              <option value="mata-mata">Mata-mata</option>
+              <option value="oitavas">Oitavas</option>
+              <option value="quartas">Quartas</option>
+              <option value="semi">Semi</option>
+              <option value="final">Final</option>
             </select>
           </div>
           <div className="fg">
@@ -231,8 +364,32 @@ export default async function PaginaAdmin() {
         .inp-gol { width: 64px !important; flex: 0 0 64px; text-align: center; font-size: 17px; font-weight: 700; }
         .placar-form .x { color: var(--text-faint); font-weight: 700; }
         .btn-lancar { padding: 9px 16px; font-size: 13px; }
+        .podio-row {
+          display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+        }
+        .podio-pos {
+          font-size: 16px; font-weight: 800; color: var(--gold);
+          width: 24px; text-align: center; flex-shrink: 0;
+        }
+        .podio-atual {
+          flex: 1; display: flex; justify-content: space-between; align-items: center;
+          background: var(--bg-2); border: 1px solid var(--line);
+          border-radius: 10px; padding: 9px 12px; font-size: 13px;
+        }
+        .podio-form {
+          flex: 1; display: flex; gap: 8px; align-items: center;
+        }
+        .podio-form .inp-select { flex: 1; }
+        .inp-qtd { width: 80px !important; flex: 0 0 80px; text-align: center; }
+        .inp-select { flex: 1; }
+        .confronto-form {
+          display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+        }
+        .confronto-form .inp { flex: 1; min-width: 140px; }
         @media (max-width: 480px) {
           .form-jogo { grid-template-columns: 1fr; }
+          .podio-form { flex-wrap: wrap; }
+          .confronto-form { flex-direction: column; }
         }
       `}</style>
     </main>

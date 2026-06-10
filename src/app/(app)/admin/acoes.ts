@@ -260,6 +260,70 @@ export async function apagarJogadorManual(formData: FormData) {
 //  Formato por linha: "Nome do Jogador ; Nome da Seleção"
 //  Linhas com # no início (comentário) ou vazias são ignoradas.
 // ============================================================
+// ============================================================
+//  LANÇAR PÓDIO REAL (artilheiro / assistências)
+// ============================================================
+
+export async function lancarPodio(formData: FormData) {
+  await exigirAdmin();
+  const admin = criarClienteAdmin();
+  const tipo = String(formData.get('tipo') || ''); // 'gols' | 'assist'
+  const posicao = Number(formData.get('posicao'));
+  const jogador_id = Number(formData.get('jogador_id'));
+  const qtd = Number(formData.get('qtd'));
+
+  if (!['gols', 'assist'].includes(tipo) || ![1, 2, 3].includes(posicao) || !jogador_id) return;
+
+  if (tipo === 'gols') {
+    await admin
+      .from('jogadores')
+      .update({ pos_artilheiro: posicao, gols_real: qtd })
+      .eq('id', jogador_id);
+  } else {
+    await admin
+      .from('jogadores')
+      .update({ pos_assistencia: posicao, assist_real: qtd })
+      .eq('id', jogador_id);
+  }
+  revalidatePath('/admin');
+  revalidatePath('/ranking');
+}
+
+export async function limparPodio(formData: FormData) {
+  await exigirAdmin();
+  const admin = criarClienteAdmin();
+  const tipo = String(formData.get('tipo') || '');
+  const posicao = Number(formData.get('posicao'));
+
+  if (!['gols', 'assist'].includes(tipo) || ![1, 2, 3].includes(posicao)) return;
+
+  const campo = tipo === 'gols'
+    ? { pos_artilheiro: null as null, gols_real: null as null }
+    : { pos_assistencia: null as null, assist_real: null as null };
+
+  const colunaPosicao = tipo === 'gols' ? 'pos_artilheiro' : 'pos_assistencia';
+  await admin.from('jogadores').update(campo).eq(colunaPosicao, posicao);
+
+  revalidatePath('/admin');
+  revalidatePath('/ranking');
+}
+
+// ============================================================
+//  EDITAR CONFRONTO DO MATA-MATA REAL (oitavas/quartas/semi/final)
+// ============================================================
+
+export async function editarConfronto(formData: FormData) {
+  await exigirAdmin();
+  const admin = criarClienteAdmin();
+  const id = Number(formData.get('id'));
+  const time_casa = Number(formData.get('time_casa')) || null;
+  const time_fora = Number(formData.get('time_fora')) || null;
+  if (!id) return;
+  await admin.from('jogos').update({ time_casa, time_fora }).eq('id', id);
+  revalidatePath('/admin');
+  revalidatePath('/ranking');
+}
+
 export async function importarJogadoresTxt(formData: FormData) {
   await exigirAdmin();
   const admin = criarClienteAdmin();

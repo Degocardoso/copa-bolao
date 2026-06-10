@@ -1,5 +1,5 @@
 import { criarClienteServidor } from '@/lib/supabase-server';
-import type { LinhaRanking } from '@/lib/tipos';
+import { calcularRankingTotal } from '@/lib/ranking-total';
 import DispararSync from '@/components/DispararSync';
 
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,7 @@ export default async function PaginaRanking() {
   const { data: userData } = await supabase.auth.getUser();
   const meuId = userData!.user!.id;
 
-  const { data } = await supabase.from('ranking').select('*');
-  const linhas = ((data as LinhaRanking[]) || []).sort((a, b) => {
+  const linhas = (await calcularRankingTotal(supabase)).sort((a, b) => {
     if (b.pontos !== a.pontos) return b.pontos - a.pontos;
     if (b.placares_cravados !== a.placares_cravados)
       return b.placares_cravados - a.placares_cravados;
@@ -24,7 +23,7 @@ export default async function PaginaRanking() {
       <DispararSync />
       <h2 className="display" style={{ fontSize: 26, marginBottom: 4 }}>Ranking</h2>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>
-        Empate cravado vale 4, vitória cravada 3, só o resultado 1. Quem manda no bolão? 🏆
+        Grupos + mata-mata + artilheiros/assistências. Quem manda no bolão? 🏆
       </p>
 
       {linhas.length === 0 ? (
@@ -35,6 +34,7 @@ export default async function PaginaRanking() {
         <div className="rank">
           {linhas.map((l, i) => {
             const eu = l.usuario_id === meuId;
+            const temDetalhes = l.pontos_mata > 0 || l.pontos_gols > 0 || l.pontos_assist > 0;
             return (
               <div key={l.usuario_id} className={`rk ${eu ? 'rk-eu' : ''} ${i < 3 ? 'rk-top' : ''}`}>
                 <div className="rk-pos">
@@ -43,7 +43,17 @@ export default async function PaginaRanking() {
                 <div className="rk-nome">
                   {l.nome}
                   {eu && <span className="voce">você</span>}
-                  <span className="rk-sub">{l.placares_cravados} cravados · {l.jogos_avaliados} avaliados</span>
+                  <span className="rk-sub">
+                    {l.placares_cravados} cravados · {l.jogos_avaliados} avaliados
+                  </span>
+                  {temDetalhes && (
+                    <span className="rk-breakdown">
+                      {l.pontos_grupos > 0 && <span>grupos {l.pontos_grupos}</span>}
+                      {l.pontos_mata > 0 && <span>mata-mata {l.pontos_mata}</span>}
+                      {l.pontos_gols > 0 && <span>artilheiro {l.pontos_gols}</span>}
+                      {l.pontos_assist > 0 && <span>assist. {l.pontos_assist}</span>}
+                    </span>
+                  )}
                 </div>
                 <div className="rk-pts">
                   <span className="pts display">{l.pontos}</span>
@@ -81,6 +91,14 @@ export default async function PaginaRanking() {
           text-transform: uppercase; margin-top: 2px;
         }
         .rk-sub { font-size: 11px; color: var(--text-faint); font-weight: 500; }
+        .rk-breakdown {
+          display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px;
+        }
+        .rk-breakdown span {
+          font-size: 10px; font-weight: 600; background: var(--bg-2);
+          border: 1px solid var(--line); border-radius: 6px;
+          padding: 1px 6px; color: var(--text-dim);
+        }
         .rk-pts { display: flex; align-items: baseline; gap: 4px; }
         .pts { font-size: 26px; color: var(--gold); }
         .pts-lbl { font-size: 12px; color: var(--text-dim); }
