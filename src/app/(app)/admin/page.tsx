@@ -64,6 +64,19 @@ export default async function PaginaAdmin() {
         Cadastre times, jogos e lance os placares oficiais.
       </p>
 
+      {/* MEMBROS — no topo para aprovação rápida */}
+      <section className="bloco" style={qtdPendentes > 0 ? { borderColor: 'rgba(244,196,48,0.4)', background: 'linear-gradient(180deg, rgba(244,196,48,0.04), var(--panel))' } : {}}>
+        <h3 className="bloco-tit">
+          👥 Membros
+          {qtdPendentes > 0 && (
+            <span style={{ marginLeft: 8, background: 'var(--gold)', color: '#04140a', fontSize: 11, fontWeight: 800, padding: '2px 9px', borderRadius: 999 }}>
+              {qtdPendentes} aguardando
+            </span>
+          )}
+        </h3>
+        <GestaoMembros membros={listaMembros} />
+      </section>
+
       {/* IMPORTAÇÃO AUTOMÁTICA */}
       <BotaoImportar ultima={ultimaImp} />
 
@@ -197,14 +210,6 @@ export default async function PaginaAdmin() {
             })}
           </div>
         )}
-      </section>
-
-      {/* MEMBROS */}
-      <section className="bloco">
-        <h3 className="bloco-tit">
-          👥 Membros{qtdPendentes > 0 ? ` · ${qtdPendentes} aguardando` : ''}
-        </h3>
-        <GestaoMembros membros={listaMembros} />
       </section>
 
       {/* CADASTRAR TIME */}

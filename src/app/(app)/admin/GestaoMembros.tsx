@@ -10,98 +10,191 @@ type Membro = {
   criado_em: string;
 };
 
+function iniciais(nome: string) {
+  return nome
+    .split(' ')
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase();
+}
+
+function AvatarLetra({ nome }: { nome: string }) {
+  return (
+    <div
+      style={{
+        width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+        background: 'var(--grass-deep)', color: '#04140a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 800, fontSize: 14,
+      }}
+    >
+      {iniciais(nome)}
+    </div>
+  );
+}
+
 export default function GestaoMembros({ membros }: { membros: Membro[] }) {
   const pendentes = membros.filter((m) => m.status === 'pendente');
   const aprovados = membros.filter((m) => m.status === 'aprovado');
   const bloqueados = membros.filter((m) => m.status === 'bloqueado');
 
-  function botoes(m: Membro) {
+  function Linha({ m }: { m: Membro }) {
     return (
-      <div className="acoes">
-        {m.status !== 'aprovado' && (
-          <form action={definirStatusUsuario}>
-            <input type="hidden" name="id" value={m.id} />
-            <input type="hidden" name="status" value="aprovado" />
-            <button className="btn btn-primary mini">✓ Aprovar</button>
-          </form>
-        )}
-        {m.status !== 'bloqueado' && (
-          <form action={definirStatusUsuario}>
-            <input type="hidden" name="id" value={m.id} />
-            <input type="hidden" name="status" value="bloqueado" />
-            <button className="btn btn-ghost mini">Bloquear</button>
-          </form>
-        )}
-        {m.status === 'bloqueado' && (
-          <form action={definirStatusUsuario}>
-            <input type="hidden" name="id" value={m.id} />
-            <input type="hidden" name="status" value="pendente" />
-            <button className="btn btn-ghost mini">Reverter</button>
-          </form>
-        )}
-      </div>
-    );
-  }
-
-  function linha(m: Membro) {
-    return (
-      <div key={m.id} className="m-row">
+      <div className={`m-row m-row-${m.status}`}>
+        <AvatarLetra nome={m.nome} />
         <div className="m-info">
-          <span className="m-nome">{m.nome}</span>
+          <div className="m-nome-row">
+            <span className="m-nome">{m.nome}</span>
+            <span className={`badge badge-${m.status}`}>
+              {m.status === 'pendente' ? 'Pendente' : m.status === 'aprovado' ? 'Aprovado' : 'Bloqueado'}
+            </span>
+          </div>
           <span className="m-email mono">{m.email}</span>
         </div>
-        {botoes(m)}
+        <div className="acoes">
+          {m.status !== 'aprovado' && (
+            <form action={definirStatusUsuario}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="status" value="aprovado" />
+              <button className="btn btn-primary mini">✓ Aprovar</button>
+            </form>
+          )}
+          {m.status === 'aprovado' && (
+            <form action={definirStatusUsuario}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="status" value="bloqueado" />
+              <button className="btn-danger mini">Bloquear</button>
+            </form>
+          )}
+          {m.status === 'pendente' && (
+            <form action={definirStatusUsuario}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="status" value="bloqueado" />
+              <button className="btn-danger mini">Bloquear</button>
+            </form>
+          )}
+          {m.status === 'bloqueado' && (
+            <form action={definirStatusUsuario}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="status" value="pendente" />
+              <button className="btn btn-ghost mini">Reverter</button>
+            </form>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="membros-wrap">
+      {/* Resumo rápido */}
+      <div className="resumo">
+        <div className="resumo-item pend">
+          <span className="resumo-num">{pendentes.length}</span>
+          <span className="resumo-label">aguardando</span>
+        </div>
+        <div className="resumo-item ok">
+          <span className="resumo-num">{aprovados.length}</span>
+          <span className="resumo-label">aprovados</span>
+        </div>
+        <div className="resumo-item blo">
+          <span className="resumo-num">{bloqueados.length}</span>
+          <span className="resumo-label">bloqueados</span>
+        </div>
+      </div>
+
+      {/* Pendentes em destaque */}
       {pendentes.length > 0 && (
-        <div className="grupo">
-          <div className="grupo-tit pend">
-            ⏳ Aguardando aprovação ({pendentes.length})
-          </div>
-          {pendentes.map(linha)}
+        <div className="grupo grupo-pend">
+          <div className="grupo-tit pend">⏳ Aguardando aprovação ({pendentes.length})</div>
+          {pendentes.map((m) => <Linha key={m.id} m={m} />)}
         </div>
       )}
 
-      <div className="grupo">
-        <div className="grupo-tit ok">✓ Aprovados ({aprovados.length})</div>
-        {aprovados.length === 0 ? (
-          <p className="vazio">Ninguém aprovado ainda.</p>
-        ) : (
-          aprovados.map(linha)
-        )}
-      </div>
+      {/* Aprovados */}
+      {aprovados.length > 0 && (
+        <div className="grupo">
+          <div className="grupo-tit ok">✓ Aprovados ({aprovados.length})</div>
+          {aprovados.map((m) => <Linha key={m.id} m={m} />)}
+        </div>
+      )}
 
+      {/* Bloqueados */}
       {bloqueados.length > 0 && (
         <div className="grupo">
           <div className="grupo-tit blo">🚫 Bloqueados ({bloqueados.length})</div>
-          {bloqueados.map(linha)}
+          {bloqueados.map((m) => <Linha key={m.id} m={m} />)}
         </div>
       )}
 
+      {membros.length === 0 && (
+        <p style={{ fontSize: 13, color: 'var(--text-faint)', textAlign: 'center', padding: '20px 0' }}>
+          Nenhum membro cadastrado ainda.
+        </p>
+      )}
+
       <style jsx>{`
-        .grupo { margin-bottom: 18px; }
+        .membros-wrap { display: flex; flex-direction: column; gap: 0; }
+
+        .resumo {
+          display: flex; gap: 10px; margin-bottom: 18px;
+        }
+        .resumo-item {
+          flex: 1; display: flex; flex-direction: column; align-items: center;
+          padding: 12px 8px; border-radius: 12px; border: 1px solid var(--line);
+          background: var(--bg-2);
+        }
+        .resumo-num { font-size: 22px; font-weight: 800; line-height: 1; }
+        .resumo-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; font-weight: 600; }
+        .resumo-item.pend .resumo-num { color: var(--gold); }
+        .resumo-item.pend .resumo-label { color: var(--gold); opacity: 0.7; }
+        .resumo-item.ok .resumo-num { color: var(--grass-bright); }
+        .resumo-item.ok .resumo-label { color: var(--grass-bright); opacity: 0.7; }
+        .resumo-item.blo .resumo-num { color: var(--red); }
+        .resumo-item.blo .resumo-label { color: var(--red); opacity: 0.7; }
+
+        .grupo { margin-bottom: 16px; }
+        .grupo-pend {
+          background: rgba(244,196,48,0.05);
+          border: 1px solid rgba(244,196,48,0.2);
+          border-radius: 13px; padding: 12px;
+        }
         .grupo-tit {
-          font-size: 12px; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.06em; margin-bottom: 10px;
+          font-size: 11px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: 0.07em; margin-bottom: 10px;
         }
         .grupo-tit.pend { color: var(--gold); }
         .grupo-tit.ok { color: var(--grass-bright); }
         .grupo-tit.blo { color: var(--red); }
-        .vazio { font-size: 13px; color: var(--text-faint); }
+
         .m-row {
-          display: flex; align-items: center; justify-content: space-between;
-          gap: 12px; background: var(--bg-2); border: 1px solid var(--line);
-          border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+          display: flex; align-items: center; gap: 11px;
+          background: var(--bg-2); border: 1px solid var(--line);
+          border-radius: 12px; padding: 11px 13px; margin-bottom: 7px;
         }
-        .m-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .m-row:last-child { margin-bottom: 0; }
+        .m-row-pendente { border-color: rgba(244,196,48,0.3); }
+        .m-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .m-nome-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
         .m-nome { font-weight: 700; font-size: 14px; }
         .m-email { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; }
+
+        .badge {
+          font-size: 9px; font-weight: 800; text-transform: uppercase;
+          letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px;
+        }
+        .badge-pendente { background: rgba(244,196,48,0.15); color: var(--gold); }
+        .badge-aprovado { background: rgba(29,185,84,0.14); color: var(--grass-bright); }
+        .badge-bloqueado { background: rgba(255,91,91,0.13); color: var(--red); }
+
         .acoes { display: flex; gap: 6px; flex-shrink: 0; }
-        .mini { padding: 7px 12px; font-size: 12px; }
+        .mini { padding: 7px 13px; font-size: 12px; font-weight: 700; }
+        .btn-danger {
+          background: rgba(255,91,91,0.1); border: 1px solid rgba(255,91,91,0.3);
+          color: var(--red); border-radius: 10px; cursor: pointer;
+        }
+        .btn-danger:hover { background: rgba(255,91,91,0.2); }
       `}</style>
     </div>
   );
