@@ -44,43 +44,36 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
       <div className={`m-row m-row-${m.status}`}>
         <AvatarLetra nome={m.nome} />
         <div className="m-info">
-          <div className="m-nome-row">
-            <span className="m-nome">{m.nome}</span>
-            <span className={`badge badge-${m.status}`}>
-              {m.status === 'pendente' ? 'Pendente' : m.status === 'aprovado' ? 'Aprovado' : 'Bloqueado'}
-            </span>
-          </div>
+          <span className="m-nome">{m.nome}</span>
           <span className="m-email mono">{m.email}</span>
         </div>
-        <div className="acoes">
-          {m.status !== 'aprovado' && (
-            <form action={definirStatusUsuario}>
-              <input type="hidden" name="id" value={m.id} />
-              <input type="hidden" name="status" value="aprovado" />
-              <button className="btn btn-primary mini">✓ Aprovar</button>
-            </form>
-          )}
-          {m.status === 'aprovado' && (
-            <form action={definirStatusUsuario}>
-              <input type="hidden" name="id" value={m.id} />
-              <input type="hidden" name="status" value="bloqueado" />
-              <button className="btn-danger mini">Bloquear</button>
-            </form>
-          )}
-          {m.status === 'pendente' && (
-            <form action={definirStatusUsuario}>
-              <input type="hidden" name="id" value={m.id} />
-              <input type="hidden" name="status" value="bloqueado" />
-              <button className="btn-danger mini">Bloquear</button>
-            </form>
-          )}
-          {m.status === 'bloqueado' && (
-            <form action={definirStatusUsuario}>
-              <input type="hidden" name="id" value={m.id} />
-              <input type="hidden" name="status" value="pendente" />
-              <button className="btn btn-ghost mini">Reverter</button>
-            </form>
-          )}
+        <div className="m-side">
+          <span className={`badge badge-${m.status}`}>
+            {m.status === 'pendente' ? 'Pendente' : m.status === 'aprovado' ? 'Aprovado' : 'Bloqueado'}
+          </span>
+          <div className="acoes">
+            {m.status !== 'aprovado' && (
+              <form action={definirStatusUsuario}>
+                <input type="hidden" name="id" value={m.id} />
+                <input type="hidden" name="status" value="aprovado" />
+                <button className="btn btn-primary mini">✓ Aprovar</button>
+              </form>
+            )}
+            {m.status !== 'bloqueado' && (
+              <form action={definirStatusUsuario}>
+                <input type="hidden" name="id" value={m.id} />
+                <input type="hidden" name="status" value="bloqueado" />
+                <button className="btn-danger mini">Bloquear</button>
+              </form>
+            )}
+            {m.status === 'bloqueado' && (
+              <form action={definirStatusUsuario}>
+                <input type="hidden" name="id" value={m.id} />
+                <input type="hidden" name="status" value="pendente" />
+                <button className="btn btn-ghost mini">Reverter</button>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -169,32 +162,42 @@ export default function GestaoMembros({ membros }: { membros: Membro[] }) {
         .grupo-tit.blo { color: var(--red); }
 
         .m-row {
-          display: flex; align-items: center; gap: 11px;
+          display: flex; align-items: center; gap: 12px;
           background: var(--bg-2); border: 1px solid var(--line);
-          border-radius: 12px; padding: 11px 13px; margin-bottom: 7px;
+          border-radius: 12px; padding: 13px 14px; margin-bottom: 8px;
         }
         .m-row:last-child { margin-bottom: 0; }
         .m-row-pendente { border-color: rgba(244,196,48,0.3); }
-        .m-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-        .m-nome-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-        .m-nome { font-weight: 700; font-size: 14px; }
-        .m-email { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; }
+        .m-info { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .m-nome { font-weight: 700; font-size: 14.5px; line-height: 1.2; }
+        .m-email { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+        .m-side {
+          display: flex; flex-direction: column; align-items: flex-end;
+          gap: 8px; flex-shrink: 0;
+        }
         .badge {
           font-size: 9px; font-weight: 800; text-transform: uppercase;
-          letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px;
+          letter-spacing: 0.06em; padding: 3px 9px; border-radius: 999px;
+          white-space: nowrap;
         }
         .badge-pendente { background: rgba(244,196,48,0.15); color: var(--gold); }
         .badge-aprovado { background: rgba(29,185,84,0.14); color: var(--grass-bright); }
         .badge-bloqueado { background: rgba(255,91,91,0.13); color: var(--red); }
 
-        .acoes { display: flex; gap: 6px; flex-shrink: 0; }
-        .mini { padding: 7px 13px; font-size: 12px; font-weight: 700; }
+        .acoes { display: flex; gap: 6px; }
+        .mini { padding: 7px 13px; font-size: 12px; font-weight: 700; white-space: nowrap; }
         .btn-danger {
           background: rgba(255,91,91,0.1); border: 1px solid rgba(255,91,91,0.3);
           color: var(--red); border-radius: 10px; cursor: pointer;
         }
         .btn-danger:hover { background: rgba(255,91,91,0.2); }
+
+        @media (max-width: 460px) {
+          .m-row { flex-wrap: wrap; }
+          .m-side { width: 100%; flex-direction: row; align-items: center;
+            justify-content: space-between; padding-left: 50px; }
+        }
       `}</style>
     </div>
   );
