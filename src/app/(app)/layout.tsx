@@ -27,6 +27,24 @@ export default async function LayoutApp({
     .select('status')
     .eq('id', data.user.id)
     .single();
+
+  // Auto-cura: se o usuário existe em auth.users mas não tem linha em
+  // 'perfis' (ex.: o banco foi reiniciado depois que ele já tinha conta),
+  // a trigger não dispara de novo. Criamos a linha aqui para que ele
+  // apareça no painel de Membros e possa ser aprovado.
+  if (!perfil) {
+    const adminClient = criarClienteAdmin();
+    await adminClient.from('perfis').upsert(
+      {
+        id: data.user.id,
+        nome,
+        email: data.user.email ?? '',
+        avatar_url: (data.user.user_metadata?.avatar_url as string) ?? null,
+        status: admin ? 'aprovado' : 'pendente',
+      },
+      { onConflict: 'id' }
+    );
+  }
   let status = perfil?.status || 'pendente';
 
   // Se é admin mas o perfil ainda não está aprovado no banco, promove agora.
