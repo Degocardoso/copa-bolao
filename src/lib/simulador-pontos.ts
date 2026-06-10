@@ -1,10 +1,11 @@
 // ============================================================
 //  SIMULADOR — Pontuação do mata-mata (regra mista)
 //
+//  Por cada time que o usuário colocou nas oitavas e chegou lá de verdade: +1
 //  Por quem avança (a seleção que a pessoa levou à fase chegou lá de verdade):
-//    oitavas 1 · quartas 2 · semi 3 · final/vice 5 · campeão 10
+//    quartas 2 · semi 3 · final/vice 5 · campeão 10
 //  Bônus de placar: +3 quando o confronto imaginado aconteceu na vida real
-//    e a pessoa cravou o placar.
+//    NA MESMA FASE e a pessoa cravou o placar.
 // ============================================================
 
 export const PONTOS_FASE: Record<string, number> = {
@@ -47,10 +48,21 @@ export function pontosMataMata(
   let total = 0;
   const detalhes: string[] = [];
 
-  // 1) Pontos por quem avança.
-  // Para cada confronto palpitado, o "vencedor" que a pessoa escolheu
-  // representa um time que ela levou para a PRÓXIMA fase.
-  // A fase alcançada pelo vencedor depende de qual confronto era.
+  // 1a) +1 para cada time que o usuário colocou nas oitavas e chegou lá de verdade.
+  palpites.filter((p) => p.fase === 'oitavas').forEach((p) => {
+    const chegouOitavas = real.alcancou['oitavas'];
+    if (!chegouOitavas) return;
+    if (p.time_a && chegouOitavas.has(p.time_a)) {
+      total += 1;
+      detalhes.push('oitavas time_a: +1');
+    }
+    if (p.time_b && chegouOitavas.has(p.time_b)) {
+      total += 1;
+      detalhes.push('oitavas time_b: +1');
+    }
+  });
+
+  // 1b) Pontos por quem avança (vencedor levado à próxima fase).
   const proximaFase: Record<string, string> = {
     oitavas: 'quartas',
     quartas: 'semi',
@@ -70,12 +82,13 @@ export function pontosMataMata(
     }
   });
 
-  // 2) Bônus de placar: confronto imaginado aconteceu e cravou o placar.
+  // 2) Bônus de placar: confronto imaginado aconteceu NA MESMA FASE e cravou o placar.
   palpites.forEach((p) => {
     if (p.time_a == null || p.time_b == null) return;
     if (p.gols_a == null || p.gols_b == null) return;
-    const real_ = real.placares.get(chavePar(p.time_a, p.time_b));
-    if (!real_) return; // esse confronto não aconteceu na vida real
+    // chave inclui fase para garantir que o confronto ocorreu na fase correta
+    const real_ = real.placares.get(`${p.fase}-${chavePar(p.time_a, p.time_b)}`);
+    if (!real_) return; // esse confronto não aconteceu nessa fase na vida real
     // alinha os gols ao mesmo lado dos times
     let golsRealA: number, golsRealB: number;
     if (real_.timeA === p.time_a) {

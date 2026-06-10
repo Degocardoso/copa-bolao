@@ -105,7 +105,7 @@ function buildRealidade(jogos: Record<string, unknown>[]): RealidadeMata {
     const gc = j.gols_casa as number | null;
     const gf = j.gols_fora as number | null;
     if (gc != null && gf != null) {
-      const key = [casa, fora].sort((a, b) => a - b).join('-');
+      const key = `${fase}-${[casa, fora].sort((a, b) => a - b).join('-')}`;
       placares.set(key, { a: gc, b: gf, timeA: casa, timeB: fora });
 
       if (fase === 'final') {
