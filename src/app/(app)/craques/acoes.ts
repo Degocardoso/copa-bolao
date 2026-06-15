@@ -3,17 +3,11 @@
 import { criarClienteServidor } from '@/lib/supabase-server';
 import { criarClienteAdmin } from '@/lib/supabase-admin';
 
-// A Copa já começou? (trava dos palpites de craque = antes do 1º jogo da Copa)
-async function copaComecou(): Promise<boolean> {
-  const admin = criarClienteAdmin();
-  const agoraISO = new Date().toISOString();
-  // o primeiro jogo de todos (qualquer fase) que já passou
-  const { data } = await admin
-    .from('jogos')
-    .select('id')
-    .lte('inicio', agoraISO)
-    .limit(1);
-  return !!(data && data.length > 0);
+// Prazo para palpites de craque: 15/jun/2026 às 23:59 (Brasília = UTC-3)
+const PRAZO_CRAQUE = new Date('2026-06-16T02:59:59Z');
+
+function craqueFechado(): boolean {
+  return new Date() > PRAZO_CRAQUE;
 }
 
 export type EscolhaCraque = {
@@ -35,8 +29,8 @@ export async function salvarCraques(escolhas: EscolhaCraque[]) {
     return { ok: false, msg: 'Sua participação ainda não foi aprovada.' };
   }
 
-  if (await copaComecou()) {
-    return { ok: false, msg: 'A Copa já começou — os palpites de craque estão fechados.' };
+  if (craqueFechado()) {
+    return { ok: false, msg: 'O prazo para palpites de craque encerrou.' };
   }
 
   const admin = criarClienteAdmin();
