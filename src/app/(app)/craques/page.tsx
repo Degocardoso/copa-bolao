@@ -18,21 +18,22 @@ export default async function PaginaCraques() {
       admin.from('jogos').select('inicio').order('inicio').limit(1),
     ]);
 
-  const agora = Date.now();
+  // Prazo: 15/jun/2026 às 23:59 (Brasília = UTC-3 → 16/jun 02:59 UTC)
+  const PRAZO_CRAQUE = new Date('2026-06-16T02:59:59Z');
+  const travado = new Date() > PRAZO_CRAQUE;
   const primeiroJogo = primeiros && primeiros[0]?.inicio;
-  const copaComecou = primeiroJogo ? new Date(primeiroJogo).getTime() <= agora : false;
 
   return (
     <main className="container" style={{ paddingTop: 22 }}>
       <h2 className="display" style={{ fontSize: 26, marginBottom: 4 }}>Craques ⚽🅰️</h2>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 18 }}>
         Monte seu top 3 de artilheiros e de garçons, com quantos gols/assistências
-        cada um faz. Trava antes do 1º jogo da Copa.
+        cada um faz. Encerra 15/jun às 23h59.
       </p>
       <TelaCraques
         jogadores={jogadores || []}
         meusPalpites={meusPalpites || []}
-        travado={copaComecou}
+        travado={travado}
         primeiroJogo={primeiroJogo || null}
       />
     </main>

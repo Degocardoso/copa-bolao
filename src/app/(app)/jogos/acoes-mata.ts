@@ -3,18 +3,11 @@
 import { criarClienteServidor } from '@/lib/supabase-server';
 import { criarClienteAdmin } from '@/lib/supabase-admin';
 
-// Verifica se o mata-mata real já começou (trava global).
-// Trava = existe algum jogo de fase != 'grupos' cujo início já passou.
-async function mataMataTravado(): Promise<boolean> {
-  const admin = criarClienteAdmin();
-  const agoraISO = new Date().toISOString();
-  const { data } = await admin
-    .from('jogos')
-    .select('id')
-    .neq('fase', 'grupos')
-    .lte('inicio', agoraISO)
-    .limit(1);
-  return !!(data && data.length > 0);
+// Prazo: 15/jun/2026 às 23:59 (Brasília = UTC-3 → 16/jun 02:59 UTC)
+const PRAZO_MATA = new Date('2026-06-16T02:59:59Z');
+
+function mataMataTravado(): boolean {
+  return new Date() > PRAZO_MATA;
 }
 
 export type PalpiteMataInput = {
@@ -46,7 +39,7 @@ export async function salvarMataMata(palpites: PalpiteMataInput[]) {
   }
 
   // checa trava
-  if (await mataMataTravado()) {
+  if (mataMataTravado()) {
     return { ok: false, msg: 'O mata-mata já começou — os palpites estão fechados.' };
   }
 

@@ -26,10 +26,9 @@ export default async function PaginaJogos() {
     admin.from('palpites_mata').select('*').eq('usuario_id', usuarioId),
   ]);
 
-  const agora = Date.now();
-  const mataComecou = (jogosMataReais || []).some(
-    (j) => new Date(j.inicio).getTime() <= agora
-  );
+  // Prazo: 15/jun/2026 às 23:59 (Brasília = UTC-3 → 16/jun 02:59 UTC)
+  const PRAZO_MATA = new Date('2026-06-16T02:59:59Z');
+  const mataComecou = new Date() > PRAZO_MATA;
   const primeiroMata = (jogosMataReais || [])[0]?.inicio || null;
 
   const listaJogosGrupo = (jogosGrupo as Jogo[]) || [];
