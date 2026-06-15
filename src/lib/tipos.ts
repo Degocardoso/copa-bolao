@@ -35,10 +35,11 @@ export type LinhaRanking = {
   placares_cravados: number;
 };
 
-// Formata data/hora no padrão brasileiro
+// Formata data/hora no padrão brasileiro (timezone fixo para evitar mismatch server/client)
 export function formatarData(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
