@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { criarClienteNavegador } from '@/lib/supabase-browser';
-import type { Jogo, Time, Palpite, PalpiteMataSalvo } from '@/lib/tipos';
+import type { Jogo, Time, Palpite, PalpiteMataSalvo, ConfrontoReal } from '@/lib/tipos';
 import { formatarData, jogoComecou } from '@/lib/tipos';
 import { pontosDoPalpite } from '@/lib/tipos';
 import Bandeira from '@/components/Bandeira';
@@ -18,8 +18,7 @@ export default function ListaJogos({
   totalGrupo,
   palpitadosGrupo,
   palpitesMataIniciais,
-  mataComecou,
-  primeiroMata,
+  jogosMataReais,
 }: {
   jogos: Jogo[];
   times: Time[];
@@ -28,8 +27,7 @@ export default function ListaJogos({
   totalGrupo: number;
   palpitadosGrupo: number;
   palpitesMataIniciais: PalpiteMataSalvo[];
-  mataComecou: boolean;
-  primeiroMata: string | null;
+  jogosMataReais: ConfrontoReal[];
 }) {
   const supabase = criarClienteNavegador();
 
@@ -235,8 +233,7 @@ export default function ListaJogos({
         palpitadosGrupo={palpitadosGrupo}
         salvosGrupo={salvos.size}
         palpitesMataIniciais={palpitesMataIniciais}
-        mataComecou={mataComecou}
-        primeiroMata={primeiroMata}
+        jogosMataReais={jogosMataReais}
       />
 
       <style jsx>{`

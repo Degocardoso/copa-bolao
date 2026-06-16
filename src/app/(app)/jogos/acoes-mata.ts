@@ -2,13 +2,7 @@
 
 import { criarClienteServidor } from '@/lib/supabase-server';
 import { criarClienteAdmin } from '@/lib/supabase-admin';
-
-// Prazo: 15/jun/2026 às 23:59 (Brasília = UTC-3 → 16/jun 02:59 UTC)
-const PRAZO_MATA = new Date('2026-06-16T02:59:59Z');
-
-function mataMataTravado(): boolean {
-  return new Date() > PRAZO_MATA;
-}
+import { confrontoComecou, type ConfrontoReal } from '@/lib/tipos';
 
 export type PalpiteMataInput = {
   confronto: string;
@@ -21,7 +15,8 @@ export type PalpiteMataInput = {
 };
 
 // Salva (ou atualiza) os palpites de mata-mata da pessoa.
-// Recebe a lista inteira da chave dela e grava de uma vez.
+// Recebe a chave inteira, mas cada confronto só é gravado se o jogo real
+// correspondente (mesma fase, mesmos dois times) ainda não tiver começado.
 export async function salvarMataMata(palpites: PalpiteMataInput[]) {
   const supabase = criarClienteServidor();
   const { data: userData } = await supabase.auth.getUser();
@@ -38,14 +33,26 @@ export async function salvarMataMata(palpites: PalpiteMataInput[]) {
     return { ok: false, msg: 'Sua participação ainda não foi aprovada.' };
   }
 
-  // checa trava
-  if (mataMataTravado()) {
-    return { ok: false, msg: 'O mata-mata já começou — os palpites estão fechados.' };
+  const admin = criarClienteAdmin();
+
+  // jogos reais do mata-mata, para travar cada confronto no apito dele
+  const { data: jogosReaisData } = await admin
+    .from('jogos')
+    .select('fase, time_casa, time_fora, inicio')
+    .neq('fase', 'grupos');
+  const jogosReais = (jogosReaisData || []) as ConfrontoReal[];
+
+  const liberados = palpites.filter(
+    (p) => !confrontoComecou(p.fase, p.time_a, p.time_b, jogosReais)
+  );
+  const travados = palpites.length - liberados.length;
+
+  if (liberados.length === 0) {
+    return { ok: false, msg: 'Esses confrontos já começaram — os palpites estão fechados.' };
   }
 
-  const admin = criarClienteAdmin();
-  // grava cada confronto (upsert por usuario+confronto)
-  const linhas = palpites.map((p) => ({
+  // grava cada confronto liberado (upsert por usuario+confronto)
+  const linhas = liberados.map((p) => ({
     usuario_id: usuarioId,
     confronto: p.confronto,
     fase: p.fase,
@@ -63,5 +70,10 @@ export async function salvarMataMata(palpites: PalpiteMataInput[]) {
   if (error) {
     return { ok: false, msg: 'Não foi possível salvar. Tente de novo.' };
   }
-  return { ok: true, msg: 'Chave salva!' };
+  return {
+    ok: true,
+    msg: travados > 0
+      ? `Chave salva! (${travados} confronto(s) já começaram e não foram alterados.)`
+      : 'Chave salva!',
+  };
 }

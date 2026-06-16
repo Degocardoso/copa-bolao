@@ -1,6 +1,6 @@
 import { criarClienteServidor } from '@/lib/supabase-server';
 import { criarClienteAdmin } from '@/lib/supabase-admin';
-import type { Jogo, Time, Palpite } from '@/lib/tipos';
+import type { Jogo, Time, Palpite, ConfrontoReal } from '@/lib/tipos';
 import ListaJogos from './ListaJogos';
 
 export const dynamic = 'force-dynamic';
@@ -22,14 +22,9 @@ export default async function PaginaJogos() {
     supabase.from('jogos').select('*').eq('fase', 'grupos').order('inicio', { ascending: true }),
     supabase.from('times').select('*'),
     supabase.from('palpites').select('*').eq('usuario_id', usuarioId),
-    admin.from('jogos').select('id, inicio, fase').neq('fase', 'grupos').order('inicio'),
+    admin.from('jogos').select('fase, time_casa, time_fora, inicio').neq('fase', 'grupos'),
     admin.from('palpites_mata').select('*').eq('usuario_id', usuarioId),
   ]);
-
-  // Prazo: 15/jun/2026 às 23:59 (Brasília = UTC-3 → 16/jun 02:59 UTC)
-  const PRAZO_MATA = new Date('2026-06-16T02:59:59Z');
-  const mataComecou = new Date() > PRAZO_MATA;
-  const primeiroMata = (jogosMataReais || [])[0]?.inicio || null;
 
   const listaJogosGrupo = (jogosGrupo as Jogo[]) || [];
   const totalGrupo = listaJogosGrupo.length;
@@ -52,8 +47,7 @@ export default async function PaginaJogos() {
         totalGrupo={totalGrupo}
         palpitadosGrupo={palpitadosGrupo}
         palpitesMataIniciais={palpitesMata || []}
-        mataComecou={mataComecou}
-        primeiroMata={primeiroMata}
+        jogosMataReais={(jogosMataReais as ConfrontoReal[]) || []}
       />
     </main>
   );

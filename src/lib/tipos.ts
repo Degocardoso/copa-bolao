@@ -51,6 +51,34 @@ export function jogoComecou(inicio: string): boolean {
   return new Date(inicio).getTime() <= Date.now();
 }
 
+// Jogo real do mata-mata (fase != 'grupos'), usado para travar cada
+// confronto da chave simulada individualmente, no apito daquele jogo.
+export type ConfrontoReal = {
+  fase: string;
+  time_casa: number | null;
+  time_fora: number | null;
+  inicio: string;
+};
+
+// Acha, entre os jogos reais do mata-mata, o que tem os mesmos dois times
+// na mesma fase — e diz se ele já comecou. Trava só ESSE confronto da
+// chave simulada (cada um no seu próprio apito), não a chave inteira.
+export function confrontoComecou(
+  fase: string,
+  timeA: number | null,
+  timeB: number | null,
+  jogosReais: ConfrontoReal[]
+): boolean {
+  if (!timeA || !timeB) return false;
+  const real = jogosReais.find(
+    (j) =>
+      j.fase === fase &&
+      ((j.time_casa === timeA && j.time_fora === timeB) ||
+        (j.time_casa === timeB && j.time_fora === timeA))
+  );
+  return !!real && jogoComecou(real.inicio);
+}
+
 // Deriva o resultado (vitoria/empate) a partir do placar
 export function resultadoDoPlacar(gc: number, gf: number): 'casa' | 'fora' | 'empate' {
   if (gc > gf) return 'casa';

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import Bandeira from '@/components/Bandeira';
-import type { Time, PalpiteMataSalvo } from '@/lib/tipos';
+import type { Time, PalpiteMataSalvo, ConfrontoReal } from '@/lib/tipos';
 import type { Jogo } from '@/lib/tipos';
+import { confrontoComecou } from '@/lib/tipos';
 import { calcularGrupos, type Palpitinho } from '@/lib/simulador-grupos';
 import { montarAvos, proximoConfronto, type Confronto } from '@/lib/simulador-chave';
 import { salvarMataMata, type PalpiteMataInput } from './acoes-mata';
@@ -19,8 +20,7 @@ export default function SecaoMataMata({
   palpitadosGrupo,
   salvosGrupo,
   palpitesMataIniciais,
-  mataComecou,
-  primeiroMata,
+  jogosMataReais,
 }: {
   jogos: Jogo[];
   times: Time[];
@@ -29,8 +29,7 @@ export default function SecaoMataMata({
   palpitadosGrupo: number;
   salvosGrupo: number;
   palpitesMataIniciais: PalpiteMataSalvo[];
-  mataComecou: boolean;
-  primeiroMata: string | null;
+  jogosMataReais: ConfrontoReal[];
 }) {
   const mapaTimes = useMemo(() => {
     const m = new Map<number, Time>();
@@ -124,7 +123,7 @@ export default function SecaoMataMata({
   }
 
   function ajustarGol(conf: Confronto, lado: 'A' | 'B', delta: number) {
-    if (mataComecou) return;
+    if (confrontoComecou(conf.fase, conf.timeA, conf.timeB, jogosMataReais)) return;
     setPalpites((prev) => {
       const atual = prev[conf.id] || { vencedor: null, golsA: 0, golsB: 0 };
       const campo = lado === 'A' ? 'golsA' : 'golsB';
@@ -202,19 +201,26 @@ export default function SecaoMataMata({
     return pal?.vencedor ? nomeTime(pal.vencedor) : null;
   })();
 
+  // cada confronto trava sozinho, no apito do jogo real correspondente
+  const confrontosProntos = todosConfrontos.filter((c) => !!c.timeA && !!c.timeB);
+  const confrontosAbertos = confrontosProntos.filter(
+    (c) => !confrontoComecou(c.fase, c.timeA, c.timeB, jogosMataReais)
+  );
+  const todosTravados = confrontosProntos.length > 0 && confrontosAbertos.length === 0;
+
   return (
     <div className="mata">
       <div className="mata-head">
         <h3 className="display" style={{ fontSize: 20 }}>🏆 Seu Mata-mata</h3>
-        {mataComecou ? (
+        {todosTravados ? (
           <span className="tag tag-locked">🔒 Fechado</span>
         ) : (
           <span className="tag tag-grass">Aberto</span>
         )}
       </div>
       <p className="mata-sub">
-        Definа o placar de cada confronto da SUA chave. Quem vence avança sozinho
-        para a próxima fase.
+        Defina o placar de cada confronto da SUA chave. Quem vence avança sozinho
+        para a próxima fase. Cada confronto trava sozinho, no apito do jogo real.
       </p>
 
       {campeao && (
@@ -238,17 +244,19 @@ export default function SecaoMataMata({
                 const b = nomeTime(c.timeB);
                 const pal = palpites[c.id] || { vencedor: null, golsA: 0, golsB: 0 };
                 const pronto = !!c.timeA && !!c.timeB;
+                const travadoConf = pronto && confrontoComecou(c.fase, c.timeA, c.timeB, jogosMataReais);
                 return (
                   <div key={c.id} className={`mconf ${!pronto ? 'aguardando' : ''}`}>
+                    {travadoConf && <span className="mconf-trava" title="Esse confronto já começou">🔒</span>}
                     <div className={`mlado ${pal.vencedor === c.timeA && c.timeA ? 'venceu' : ''}`}>
                       <Bandeira emoji={a.bandeira} tamanho={16} />
                       <span className="mnome">{a.nome}</span>
                     </div>
                     <div className="mplacar">
-                      <Mini valor={pal.golsA} travado={mataComecou || !pronto}
+                      <Mini valor={pal.golsA} travado={travadoConf || !pronto}
                         onMais={() => ajustarGol(c, 'A', 1)} onMenos={() => ajustarGol(c, 'A', -1)} />
                       <span className="mx">×</span>
-                      <Mini valor={pal.golsB} travado={mataComecou || !pronto}
+                      <Mini valor={pal.golsB} travado={travadoConf || !pronto}
                         onMais={() => ajustarGol(c, 'B', 1)} onMenos={() => ajustarGol(c, 'B', -1)} />
                     </div>
                     <div className={`mlado dir ${pal.vencedor === c.timeB && c.timeB ? 'venceu' : ''}`}>
@@ -266,7 +274,7 @@ export default function SecaoMataMata({
         );
       })}
 
-      {!mataComecou && (
+      {confrontosAbertos.length > 0 && (
         <div className="salvar-barra">
           <button className="btn btn-primary btn-block" onClick={salvarTudo} disabled={salvando}>
             {salvando ? 'Salvando…' : '💾 Salvar meu mata-mata'}
@@ -296,6 +304,9 @@ export default function SecaoMataMata({
           border-radius: 12px; padding: 12px;
         }
         .mconf.aguardando { opacity: 0.5; }
+        .mconf-trava {
+          position: absolute; top: 8px; right: 10px; font-size: 11px; opacity: 0.75;
+        }
         .mlado { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
         .mlado.dir { justify-content: flex-end; }
         .mlado.venceu { color: var(--grass-bright); }
