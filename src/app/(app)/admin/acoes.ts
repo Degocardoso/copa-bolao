@@ -44,8 +44,9 @@ export async function criarJogo(formData: FormData) {
   const time_fora = Number(formData.get('time_fora')) || null;
   const inicioLocal = String(formData.get('inicio') || '');
   if (!inicioLocal) return;
-  // datetime-local vem sem fuso; tratamos como horario local do Brasil
-  const inicio = new Date(inicioLocal).toISOString();
+  // datetime-local chega sem fuso (ex: "2026-06-18T19:00"); anexamos "-03:00"
+  // para que o horário seja interpretado como Brasília (UTC-3), não como UTC.
+  const inicio = new Date(inicioLocal + ':00-03:00').toISOString();
   await admin.from('jogos').insert({ fase, rodada, time_casa, time_fora, inicio });
   revalidatePath('/admin');
   revalidatePath('/jogos');

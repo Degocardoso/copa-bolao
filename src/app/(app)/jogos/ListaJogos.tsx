@@ -79,7 +79,9 @@ export default function ListaJogos({
 
     setSalvando(null);
     if (error) {
-      setErro('Não foi possível salvar — o jogo pode já ter começado.');
+      console.error('[salvar palpite]', error);
+      const detalhe = error.message || error.details || error.hint || error.code || '';
+      setErro(`Não foi possível salvar. ${detalhe}`);
     } else {
       setSalvos((s) => new Set(s).add(jogo.id));
     }
