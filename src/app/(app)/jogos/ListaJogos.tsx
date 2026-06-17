@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { criarClienteNavegador } from '@/lib/supabase-browser';
 import type { Jogo, Time, Palpite, PalpiteMataSalvo, ConfrontoReal } from '@/lib/tipos';
 import { formatarData, jogoComecou } from '@/lib/tipos';
@@ -31,7 +30,6 @@ export default function ListaJogos({
   jogosMataReais: ConfrontoReal[];
 }) {
   const supabase = criarClienteNavegador();
-  const router = useRouter();
 
   // força re-render a cada 30s para que jogoComecou() use o horário atual
   // (evita a UI ficar obsoleta quando o jogo começa com a página aberta)
@@ -96,8 +94,7 @@ export default function ListaJogos({
       if (perfil?.status !== 'aprovado') {
         setErro('Sua participação ainda não foi aprovada — peça ao admin para liberar seu acesso.');
       } else {
-        setErro('Esse jogo já começou. A página está sendo atualizada…');
-        router.refresh();
+        setErro('Não foi possível salvar. O horário cadastrado no banco pode estar errado — peça ao admin para verificar o horário do jogo.');
       }
     } else {
       setSalvos((s) => new Set(s).add(jogo.id));
