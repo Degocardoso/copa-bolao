@@ -51,6 +51,12 @@ export default function ListaJogos({
     palpitesIniciais.forEach((p) => (r[p.jogo_id] = { casa: p.gols_casa, fora: p.gols_fora }));
     return r;
   });
+  // último placar confirmado no banco (atualiza a cada save bem-sucedido)
+  const [salvosPlacares, setSalvosPlacares] = useState<Record<number, Placar>>(() => {
+    const r: Record<number, Placar> = {};
+    palpitesIniciais.forEach((p) => (r[p.jogo_id] = { casa: p.gols_casa, fora: p.gols_fora }));
+    return r;
+  });
   // jogos que ja tem palpite salvo no banco
   const [salvos, setSalvos] = useState<Set<number>>(
     () => new Set(palpitesIniciais.map((p) => p.jogo_id))
@@ -98,6 +104,7 @@ export default function ListaJogos({
       }
     } else {
       setSalvos((s) => new Set(s).add(jogo.id));
+      setSalvosPlacares((prev) => ({ ...prev, [jogo.id]: { ...placar } }));
     }
   }
 
@@ -144,11 +151,11 @@ export default function ListaJogos({
                 ? pontosDoPalpite(placar.casa, placar.fora, jogo.gols_casa, jogo.gols_fora)
                 : 0;
 
-              // mudou em relacao ao salvo?
-              const inicial = palpitesIniciais.find((p) => p.jogo_id === jogo.id);
+              // mudou em relacao ao ultimo salvo com sucesso?
+              const salvoAtual = salvosPlacares[jogo.id];
               const mudou =
                 !!placar &&
-                (!inicial || inicial.gols_casa !== placar.casa || inicial.gols_fora !== placar.fora);
+                (!salvoAtual || salvoAtual.casa !== placar.casa || salvoAtual.fora !== placar.fora);
 
               return (
                 <div key={jogo.id} className={`jogo ${travado ? 'travado' : ''}`}>
