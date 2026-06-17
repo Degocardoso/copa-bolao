@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { criarClienteNavegador } from '@/lib/supabase-browser';
 import type { Jogo, Time, Palpite, PalpiteMataSalvo, ConfrontoReal } from '@/lib/tipos';
 import { formatarData, jogoComecou } from '@/lib/tipos';
@@ -30,6 +31,15 @@ export default function ListaJogos({
   jogosMataReais: ConfrontoReal[];
 }) {
   const supabase = criarClienteNavegador();
+  const router = useRouter();
+
+  // força re-render a cada 30s para que jogoComecou() use o horário atual
+  // (evita a UI ficar obsoleta quando o jogo começa com a página aberta)
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const mapaTimes = useMemo(() => {
     const m = new Map<number, Time>();
@@ -80,8 +90,15 @@ export default function ListaJogos({
     setSalvando(null);
     if (error) {
       console.error('[salvar palpite]', error);
-      const detalhe = error.message || error.details || error.hint || error.code || '';
-      setErro(`Não foi possível salvar. ${detalhe}`);
+      // Descobre qual condição RLS falhou para dar mensagem útil
+      const { data: perfil } = await supabase
+        .from('perfis').select('status').eq('id', usuarioId).single();
+      if (perfil?.status !== 'aprovado') {
+        setErro('Sua participação ainda não foi aprovada — peça ao admin para liberar seu acesso.');
+      } else {
+        setErro('Esse jogo já começou. A página está sendo atualizada…');
+        router.refresh();
+      }
     } else {
       setSalvos((s) => new Set(s).add(jogo.id));
     }
