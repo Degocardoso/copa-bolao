@@ -8,7 +8,6 @@ import Bandeira from '@/components/Bandeira';
 
 type Placar = { casa: number; fora: number };
 
-const FASE_ORDEM = ['avos', 'oitavas', 'quartas', 'semi', 'final'];
 const FASE_TITULO: Record<string, string> = {
   avos: '32 Avos de Final',
   oitavas: 'Oitavas de Final',
@@ -16,6 +15,21 @@ const FASE_TITULO: Record<string, string> = {
   semi: 'Semifinais',
   final: 'Final',
 };
+
+// Título amigável (PT) de um jogo do mata-mata, valendo tanto para jogos
+// criados à mão (fase = avos/oitavas/...) quanto importados (fase = 'mata-mata'
+// com a rodada em inglês vinda do openfootball).
+function tituloMata(j: Jogo): string {
+  if (FASE_TITULO[j.fase]) return FASE_TITULO[j.fase];
+  const r = (j.rodada || '').toLowerCase();
+  if (/round of 32|1\/16|16.?avos|32.?avos/.test(r)) return '32 Avos de Final';
+  if (/round of 16|1\/8|oitavas/.test(r)) return 'Oitavas de Final';
+  if (/quarter|1\/4|quartas/.test(r)) return 'Quartas de Final';
+  if (/semi/.test(r)) return 'Semifinais';
+  if (/third|3rd|terceiro|3º|3o/.test(r)) return 'Disputa de 3º lugar';
+  if (/final/.test(r)) return 'Final';
+  return j.rodada || 'Mata-mata';
+}
 
 export default function ListaJogos({
   jogos,
@@ -142,6 +156,8 @@ export default function ListaJogos({
   }
 
   // ---------- Card de um jogo ----------
+  // Os estilos do card ficam AQUI dentro (mesmo escopo do styled-jsx), senão
+  // não são aplicados aos elementos renderizados por esta função.
   function renderJogo(jogo: Jogo, ehMata: boolean) {
     const casa = jogo.time_casa ? mapaTimes.get(jogo.time_casa) : null;
     const fora = jogo.time_fora ? mapaTimes.get(jogo.time_fora) : null;
@@ -156,7 +172,6 @@ export default function ListaJogos({
     const penaltiAtual = penaltis[jogo.id] ?? null;
     const penaltiSalvo = salvosPenaltis[jogo.id] ?? null;
 
-    // pontos do palpite (placar + bônus de pênaltis no mata-mata)
     let ptsJogo = 0;
     let bonusPen = 0;
     if (oficial && temPalpite && placar) {
@@ -172,7 +187,6 @@ export default function ListaJogos({
       }
     }
 
-    // mudou em relacao ao ultimo salvo com sucesso?
     const salvoAtual = salvosPlacares[jogo.id];
     const mudouPlacar =
       !!placar &&
@@ -307,6 +321,67 @@ export default function ListaJogos({
             <span className="status"><span className="pend">você não palpitou</span></span>
           </div>
         )}
+
+        <style jsx>{`
+          .jogo {
+            background: var(--panel); border: 1px solid var(--line);
+            border-radius: 16px; padding: 14px; transition: opacity 0.2s;
+          }
+          .jogo.travado { opacity: 0.9; }
+          .jogo-topo {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 14px;
+          }
+          .jogo-data { font-size: 12px; color: var(--text-dim); }
+          .confronto {
+            display: grid; grid-template-columns: 1fr auto 1fr;
+            gap: 10px; align-items: center;
+          }
+          .lado {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+          }
+          .time-nome {
+            font-size: 13px; font-weight: 700; text-align: center; line-height: 1.15;
+          }
+          .placar { display: flex; align-items: center; gap: 8px; justify-content: center; }
+          .x { font-size: 20px; color: var(--text-faint); font-weight: 700; }
+          .pen {
+            margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+            background: rgba(244,196,48,0.08); border: 1px solid var(--gold-deep);
+          }
+          .pen-lbl { font-size: 12px; color: var(--gold); font-weight: 700; }
+          .pen-opts { display: flex; gap: 8px; margin-top: 8px; }
+          .pen-opt {
+            flex: 1; padding: 9px 8px; border-radius: 9px;
+            background: var(--bg-2); border: 1px solid var(--line);
+            color: var(--text); font-size: 13px; font-weight: 700;
+            transition: all 0.12s; line-height: 1.1;
+          }
+          .pen-opt:hover { border-color: var(--gold); }
+          .pen-opt.sel {
+            background: rgba(244,196,48,0.18); border-color: var(--gold);
+            color: var(--gold);
+          }
+          .oficial {
+            margin-top: 12px; padding: 8px 12px; border-radius: 10px;
+            background: var(--bg-2); border: 1px solid var(--line);
+            font-size: 12px; color: var(--text-dim); text-align: center;
+          }
+          .oficial b { color: var(--text); }
+          .oficial.cravou {
+            background: rgba(29,185,84,0.14); border-color: var(--grass-bright);
+            color: var(--grass-bright);
+          }
+          .jogo-rodape {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 13px; gap: 10px;
+          }
+          .status { font-size: 12px; font-weight: 600; }
+          .ok { color: var(--grass-bright); }
+          .pend { color: var(--text-faint); }
+          .trav { color: var(--text-dim); }
+          .btn-salvar { padding: 9px 18px; font-size: 14px; }
+        `}</style>
       </div>
     );
   }
@@ -334,13 +409,13 @@ export default function ListaJogos({
     grupos.get(chave)!.push(j);
   });
 
-  // mata-mata: agrupado por fase, na ordem certa
-  const secoesMata = FASE_ORDEM.map((f) => ({
-    titulo: FASE_TITULO[f],
-    lista: jogosMata
-      .filter((j) => j.fase === f)
-      .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime()),
-  })).filter((s) => s.lista.length > 0);
+  // mata-mata: agrupado por etapa (qualquer fase != grupos), na ordem do calendário
+  const secoesMata = new Map<string, Jogo[]>();
+  jogosMata.forEach((j) => {
+    const chave = tituloMata(j);
+    if (!secoesMata.has(chave)) secoesMata.set(chave, []);
+    secoesMata.get(chave)!.push(j);
+  });
 
   return (
     <div>
@@ -353,14 +428,14 @@ export default function ListaJogos({
         </section>
       ))}
 
-      {secoesMata.length > 0 && (
+      {secoesMata.size > 0 && (
         <div className="mata-bloco">
           <h2 className="display" style={{ fontSize: 20, marginBottom: 4 }}>🏆 Mata-mata</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 16 }}>
             Palpite o placar de cada jogo do mata-mata, igual aos grupos. Empate? Diga quem
             passa nos pênaltis (+3 se acertar). Cada jogo trava no apito.
           </p>
-          {secoesMata.map(({ titulo, lista }) => (
+          {Array.from(secoesMata.entries()).map(([titulo, lista]) => (
             <section key={titulo} style={{ marginBottom: 26 }}>
               <h3 className="secao-titulo mono">{titulo}</h3>
               <div className="jogos">{lista.map((jogo) => renderJogo(jogo, true))}</div>
@@ -382,64 +457,6 @@ export default function ListaJogos({
         }
         .mata-bloco { margin-top: 30px; padding-top: 24px; border-top: 2px solid var(--line); }
         .jogos { display: flex; flex-direction: column; gap: 12px; }
-        .jogo {
-          background: var(--panel); border: 1px solid var(--line);
-          border-radius: 16px; padding: 14px; transition: opacity 0.2s;
-        }
-        .jogo.travado { opacity: 0.9; }
-        .jogo-topo {
-          display: flex; justify-content: space-between; align-items: center;
-          margin-bottom: 14px;
-        }
-        .jogo-data { font-size: 12px; color: var(--text-dim); }
-        .confronto {
-          display: grid; grid-template-columns: 1fr auto 1fr;
-          gap: 10px; align-items: center;
-        }
-        .lado {
-          display: flex; flex-direction: column; align-items: center; gap: 6px;
-        }
-        .time-nome {
-          font-size: 13px; font-weight: 700; text-align: center; line-height: 1.15;
-        }
-        .placar { display: flex; align-items: center; gap: 8px; }
-        .x { font-size: 20px; color: var(--text-faint); font-weight: 700; }
-        .pen {
-          margin-top: 12px; padding: 10px 12px; border-radius: 10px;
-          background: rgba(244,196,48,0.08); border: 1px solid var(--gold-deep);
-        }
-        .pen-lbl { font-size: 12px; color: var(--gold); font-weight: 700; }
-        .pen-opts { display: flex; gap: 8px; margin-top: 8px; }
-        .pen-opt {
-          flex: 1; padding: 9px 8px; border-radius: 9px;
-          background: var(--bg-2); border: 1px solid var(--line);
-          color: var(--text); font-size: 13px; font-weight: 700;
-          transition: all 0.12s; line-height: 1.1;
-        }
-        .pen-opt:hover { border-color: var(--gold); }
-        .pen-opt.sel {
-          background: rgba(244,196,48,0.18); border-color: var(--gold);
-          color: var(--gold);
-        }
-        .oficial {
-          margin-top: 12px; padding: 8px 12px; border-radius: 10px;
-          background: var(--bg-2); border: 1px solid var(--line);
-          font-size: 12px; color: var(--text-dim); text-align: center;
-        }
-        .oficial b { color: var(--text); }
-        .oficial.cravou {
-          background: rgba(29,185,84,0.14); border-color: var(--grass-bright);
-          color: var(--grass-bright);
-        }
-        .jogo-rodape {
-          display: flex; justify-content: space-between; align-items: center;
-          margin-top: 13px; gap: 10px;
-        }
-        .status { font-size: 12px; font-weight: 600; }
-        .ok { color: var(--grass-bright); }
-        .pend { color: var(--text-faint); }
-        .trav { color: var(--text-dim); }
-        .btn-salvar { padding: 9px 18px; font-size: 14px; }
       `}</style>
     </div>
   );
