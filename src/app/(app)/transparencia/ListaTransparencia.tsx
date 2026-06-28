@@ -12,6 +12,7 @@ type PalpiteT = {
   jogo_id: number;
   gols_casa: number;
   gols_fora: number;
+  avanca_penaltis?: number | null;
   atualizado_em: string;
 };
 
@@ -22,6 +23,7 @@ export default function ListaTransparencia({
   palpites,
   meuId,
   campeaoPorUsuario,
+  finalComecou,
 }: {
   jogadores: Jogador[];
   jogos: Jogo[];
@@ -29,6 +31,7 @@ export default function ListaTransparencia({
   palpites: PalpiteT[];
   meuId: string;
   campeaoPorUsuario: Record<string, number | null>;
+  finalComecou: boolean;
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -101,6 +104,9 @@ export default function ListaTransparencia({
                 {ehEu && <span className="voce">você</span>}
               </span>
               {(() => {
+                // só revela o campeão palpitado depois que a final começou
+                // (antes disso, só o próprio dono vê) — evita cópia.
+                if (!ehEu && !finalComecou) return null;
                 const campId = campeaoPorUsuario[jog.id];
                 const camp = campId ? mapaTimes.get(campId) : null;
                 if (!camp) return null;
@@ -130,9 +136,29 @@ export default function ListaTransparencia({
                     const oficial = jogo.gols_casa != null && jogo.gols_fora != null;
                     const cravou =
                       oficial && p.gols_casa === jogo.gols_casa && p.gols_fora === jogo.gols_fora;
-                    const pts = oficial
+                    let pts = oficial
                       ? pontosDoPalpite(p.gols_casa, p.gols_fora, jogo.gols_casa, jogo.gols_fora)
                       : 0;
+
+                    // mata-mata: palpite de empate mostra quem a pessoa pôs pra
+                    // passar nos pênaltis (+3 se acertou).
+                    const ehMata = jogo.fase !== 'grupos';
+                    const empatePalpite = p.gols_casa === p.gols_fora;
+                    const penNome =
+                      ehMata && empatePalpite && p.avanca_penaltis
+                        ? nomeTime(p.avanca_penaltis).nome
+                        : null;
+                    let bonusPen = 0;
+                    if (
+                      oficial && ehMata &&
+                      jogo.gols_casa === jogo.gols_fora &&
+                      jogo.vencedor_penaltis != null &&
+                      empatePalpite &&
+                      (p.avanca_penaltis ?? null) === jogo.vencedor_penaltis
+                    ) {
+                      bonusPen = 3;
+                    }
+                    pts += bonusPen;
 
                     return (
                       <div key={p.jogo_id} className="pal">
@@ -147,6 +173,12 @@ export default function ListaTransparencia({
                           )}
                           <span className="dir lt-time">{fora.nome} <Bandeira emoji={fora.bandeira} tamanho={15} /></span>
                         </div>
+                        {podeVer && penNome && (
+                          <div className="pal-pen">
+                            ⚖️ passa nos pênaltis: <b>{penNome}</b>
+                            {bonusPen > 0 && <span className="pen-ok"> ✓ +3</span>}
+                          </div>
+                        )}
                         <div className="pal-meta mono">
                           {podeVer ? (
                             <>palpitou em {formatarData(p.atualizado_em)}
@@ -215,6 +247,12 @@ export default function ListaTransparencia({
         }
         .placar.cravou { border-color: var(--grass-bright); color: var(--grass-bright); }
         .oculto { font-size: 15px; opacity: 0.6; }
+        .pal-pen {
+          margin-top: 6px; text-align: center; font-size: 11.5px;
+          color: var(--gold); font-weight: 600;
+        }
+        .pal-pen b { color: var(--text); }
+        .pen-ok { color: var(--grass-bright); font-weight: 800; }
         .pal-meta { font-size: 10.5px; color: var(--text-faint); margin-top: 5px; text-align: center; }
       `}</style>
     </div>
