@@ -67,7 +67,10 @@ export async function lancarPlacar(formData: FormData) {
   const id = Number(formData.get('id'));
   const gols_casa = Number(formData.get('gols_casa'));
   const gols_fora = Number(formData.get('gols_fora'));
-  await admin.from('jogos').update({ gols_casa, gols_fora }).eq('id', id);
+  // quem passou nos pênaltis — só faz sentido quando o jogo terminou empatado
+  const vpRaw = Number(formData.get('vencedor_penaltis'));
+  const vencedor_penaltis = gols_casa === gols_fora && vpRaw ? vpRaw : null;
+  await admin.from('jogos').update({ gols_casa, gols_fora, vencedor_penaltis }).eq('id', id);
   revalidatePath('/admin');
   revalidatePath('/jogos');
   revalidatePath('/ranking');
@@ -78,8 +81,9 @@ export async function limparPlacar(formData: FormData) {
   await exigirAdmin();
   const admin = criarClienteAdmin();
   const id = Number(formData.get('id'));
-  await admin.from('jogos').update({ gols_casa: null, gols_fora: null }).eq('id', id);
+  await admin.from('jogos').update({ gols_casa: null, gols_fora: null, vencedor_penaltis: null }).eq('id', id);
   revalidatePath('/admin');
+  revalidatePath('/jogos');
   revalidatePath('/ranking');
 }
 

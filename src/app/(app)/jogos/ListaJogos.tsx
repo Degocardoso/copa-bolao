@@ -2,32 +2,33 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { criarClienteNavegador } from '@/lib/supabase-browser';
-import type { Jogo, Time, Palpite, PalpiteMataSalvo, ConfrontoReal } from '@/lib/tipos';
-import { formatarData, jogoComecou } from '@/lib/tipos';
-import { pontosDoPalpite } from '@/lib/tipos';
+import type { Jogo, Time, Palpite } from '@/lib/tipos';
+import { formatarData, jogoComecou, pontosDoPalpite } from '@/lib/tipos';
 import Bandeira from '@/components/Bandeira';
-import SecaoMataMata from './SecaoMataMata';
 
 type Placar = { casa: number; fora: number };
 
+const FASE_ORDEM = ['avos', 'oitavas', 'quartas', 'semi', 'final'];
+const FASE_TITULO: Record<string, string> = {
+  avos: '32 Avos de Final',
+  oitavas: 'Oitavas de Final',
+  quartas: 'Quartas de Final',
+  semi: 'Semifinais',
+  final: 'Final',
+};
+
 export default function ListaJogos({
   jogos,
+  jogosMata,
   times,
   palpitesIniciais,
   usuarioId,
-  totalGrupo,
-  palpitadosGrupo,
-  palpitesMataIniciais,
-  jogosMataReais,
 }: {
   jogos: Jogo[];
+  jogosMata: Jogo[];
   times: Time[];
   palpitesIniciais: Palpite[];
   usuarioId: string;
-  totalGrupo: number;
-  palpitadosGrupo: number;
-  palpitesMataIniciais: PalpiteMataSalvo[];
-  jogosMataReais: ConfrontoReal[];
 }) {
   const supabase = criarClienteNavegador();
 
@@ -61,6 +62,18 @@ export default function ListaJogos({
   const [salvos, setSalvos] = useState<Set<number>>(
     () => new Set(palpitesIniciais.map((p) => p.jogo_id))
   );
+  // palpite de "quem passa nos pênaltis" (só mata-mata, em empate)
+  const [penaltis, setPenaltis] = useState<Record<number, number | null>>(() => {
+    const r: Record<number, number | null> = {};
+    palpitesIniciais.forEach((p) => (r[p.jogo_id] = p.avanca_penaltis ?? null));
+    return r;
+  });
+  const [salvosPenaltis, setSalvosPenaltis] = useState<Record<number, number | null>>(() => {
+    const r: Record<number, number | null> = {};
+    palpitesIniciais.forEach((p) => (r[p.jogo_id] = p.avanca_penaltis ?? null));
+    return r;
+  });
+
   const [salvando, setSalvando] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -72,10 +85,29 @@ export default function ListaJogos({
     });
   }
 
-  async function salvar(jogo: Jogo) {
+  function escolherPenalti(jogoId: number, timeId: number) {
+    setPenaltis((p) => ({ ...p, [jogoId]: timeId }));
+  }
+
+  function nomeTime(id: number | null | undefined) {
+    if (!id) return 'A definir';
+    return mapaTimes.get(id)?.nome || '—';
+  }
+
+  async function salvar(jogo: Jogo, ehMata: boolean) {
     if (jogoComecou(jogo.inicio)) return;
+    const pronto = !!jogo.time_casa && !!jogo.time_fora;
+    if (ehMata && !pronto) return;
     const placar = placares[jogo.id];
     if (!placar) return;
+
+    const ehEmpate = placar.casa === placar.fora;
+    const penaltiPick = ehMata && ehEmpate ? penaltis[jogo.id] ?? null : null;
+    if (ehMata && ehEmpate && !penaltiPick) {
+      setErro('Empate: escolha quem passa nos pênaltis antes de salvar.');
+      return;
+    }
+
     setErro(null);
     setSalvando(jogo.id);
 
@@ -87,6 +119,7 @@ export default function ListaJogos({
           jogo_id: jogo.id,
           gols_casa: placar.casa,
           gols_fora: placar.fora,
+          avanca_penaltis: penaltiPick,
         },
         { onConflict: 'usuario_id,jogo_id' }
       );
@@ -94,7 +127,6 @@ export default function ListaJogos({
     setSalvando(null);
     if (error) {
       console.error('[salvar palpite]', error);
-      // Descobre qual condição RLS falhou para dar mensagem útil
       const { data: perfil } = await supabase
         .from('perfis').select('status').eq('id', usuarioId).single();
       if (perfil?.status !== 'aprovado') {
@@ -105,10 +137,181 @@ export default function ListaJogos({
     } else {
       setSalvos((s) => new Set(s).add(jogo.id));
       setSalvosPlacares((prev) => ({ ...prev, [jogo.id]: { ...placar } }));
+      setSalvosPenaltis((prev) => ({ ...prev, [jogo.id]: penaltiPick }));
     }
   }
 
-  if (jogos.length === 0) {
+  // ---------- Card de um jogo ----------
+  function renderJogo(jogo: Jogo, ehMata: boolean) {
+    const casa = jogo.time_casa ? mapaTimes.get(jogo.time_casa) : null;
+    const fora = jogo.time_fora ? mapaTimes.get(jogo.time_fora) : null;
+    const pronto = !!jogo.time_casa && !!jogo.time_fora;
+    const comecou = jogoComecou(jogo.inicio);
+    const bloqueado = comecou || !pronto; // não dá pra mexer nos steppers
+    const placar = placares[jogo.id];
+    const temPalpite = salvos.has(jogo.id);
+    const oficial = jogo.gols_casa != null && jogo.gols_fora != null;
+
+    const ehEmpate = !!placar && placar.casa === placar.fora;
+    const penaltiAtual = penaltis[jogo.id] ?? null;
+    const penaltiSalvo = salvosPenaltis[jogo.id] ?? null;
+
+    // pontos do palpite (placar + bônus de pênaltis no mata-mata)
+    let ptsJogo = 0;
+    let bonusPen = 0;
+    if (oficial && temPalpite && placar) {
+      ptsJogo = pontosDoPalpite(placar.casa, placar.fora, jogo.gols_casa, jogo.gols_fora);
+      if (
+        ehMata &&
+        jogo.gols_casa === jogo.gols_fora &&
+        jogo.vencedor_penaltis != null &&
+        placar.casa === placar.fora &&
+        penaltiSalvo === jogo.vencedor_penaltis
+      ) {
+        bonusPen = 3;
+      }
+    }
+
+    // mudou em relacao ao ultimo salvo com sucesso?
+    const salvoAtual = salvosPlacares[jogo.id];
+    const mudouPlacar =
+      !!placar &&
+      (!salvoAtual || salvoAtual.casa !== placar.casa || salvoAtual.fora !== placar.fora);
+    const mudouPenalti = ehMata && ehEmpate && penaltiAtual !== penaltiSalvo;
+    const mudou = mudouPlacar || mudouPenalti;
+    const faltaPenalti = ehMata && ehEmpate && pronto && !comecou && !penaltiAtual;
+
+    return (
+      <div key={jogo.id} className={`jogo ${bloqueado ? 'travado' : ''}`}>
+        <div className="jogo-topo">
+          <span className="jogo-data mono">{formatarData(jogo.inicio)}</span>
+          {!pronto ? (
+            <span className="tag tag-dim">⏳ A definir</span>
+          ) : comecou ? (
+            <span className="tag tag-locked">🔒 Fechado</span>
+          ) : (
+            <span className="tag tag-grass">Aberto</span>
+          )}
+        </div>
+
+        <div className="confronto">
+          <div className="lado">
+            <Bandeira emoji={casa?.bandeira} tamanho={30} />
+            <span className="time-nome">{casa?.nome || 'A definir'}</span>
+          </div>
+
+          <div className="placar">
+            <Stepper
+              valor={placar?.casa ?? 0}
+              travado={bloqueado}
+              onMais={() => ajustar(jogo.id, 'casa', 1)}
+              onMenos={() => ajustar(jogo.id, 'casa', -1)}
+            />
+            <span className="x mono">×</span>
+            <Stepper
+              valor={placar?.fora ?? 0}
+              travado={bloqueado}
+              onMais={() => ajustar(jogo.id, 'fora', 1)}
+              onMenos={() => ajustar(jogo.id, 'fora', -1)}
+            />
+          </div>
+
+          <div className="lado">
+            <Bandeira emoji={fora?.bandeira} tamanho={30} />
+            <span className="time-nome">{fora?.nome || 'A definir'}</span>
+          </div>
+        </div>
+
+        {/* seletor de quem passa nos pênaltis (mata-mata, empate, em aberto) */}
+        {ehMata && pronto && !comecou && ehEmpate && (
+          <div className="pen">
+            <span className="pen-lbl">⚖️ Empate — quem passa nos pênaltis?</span>
+            <div className="pen-opts">
+              <button
+                className={`pen-opt ${penaltiAtual === jogo.time_casa ? 'sel' : ''}`}
+                onClick={() => escolherPenalti(jogo.id, jogo.time_casa!)}
+              >
+                {casa?.nome || 'Casa'}
+              </button>
+              <button
+                className={`pen-opt ${penaltiAtual === jogo.time_fora ? 'sel' : ''}`}
+                onClick={() => escolherPenalti(jogo.id, jogo.time_fora!)}
+              >
+                {fora?.nome || 'Fora'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {oficial && (
+          <div className={`oficial ${ptsJogo + bonusPen > 0 ? 'cravou' : ''}`}>
+            Resultado oficial: <b>{jogo.gols_casa} × {jogo.gols_fora}</b>
+            {ehMata && jogo.gols_casa === jogo.gols_fora && jogo.vencedor_penaltis != null && (
+              <> · nos pênaltis passou <b>{nomeTime(jogo.vencedor_penaltis)}</b></>
+            )}
+            {temPalpite && (
+              <>
+                {ptsJogo === 4 ? ' · você cravou o empate! +4 🔥'
+                  : ptsJogo === 3 ? ' · você cravou o placar! +3 🎯'
+                  : ptsJogo === 1 ? ' · acertou o resultado! +1 ✅'
+                  : ' · não foi dessa vez'}
+                {bonusPen > 0 && ' +3 nos pênaltis! 🎯'}
+              </>
+            )}
+          </div>
+        )}
+
+        {!bloqueado && (
+          <div className="jogo-rodape">
+            <span className="status">
+              {temPalpite && !mudou ? (
+                <span className="ok">
+                  ✓ palpite salvo: {placar?.casa} × {placar?.fora}
+                  {ehMata && penaltiSalvo ? ` · passa: ${nomeTime(penaltiSalvo)}` : ''}
+                </span>
+              ) : faltaPenalti ? (
+                <span className="pend">escolha quem passa nos pênaltis</span>
+              ) : placar ? (
+                <span className="pend">palpite não salvo</span>
+              ) : (
+                <span className="pend">defina o placar</span>
+              )}
+            </span>
+            <button
+              className="btn btn-primary btn-salvar"
+              disabled={!placar || !mudou || salvando === jogo.id || faltaPenalti}
+              onClick={() => salvar(jogo, ehMata)}
+            >
+              {salvando === jogo.id ? 'salvando…' : temPalpite ? 'Atualizar' : 'Salvar'}
+            </button>
+          </div>
+        )}
+
+        {bloqueado && !pronto && (
+          <div className="jogo-rodape">
+            <span className="status"><span className="pend">aguardando definição dos times</span></span>
+          </div>
+        )}
+        {bloqueado && pronto && temPalpite && (
+          <div className="jogo-rodape">
+            <span className="status">
+              <span className="trav">
+                seu palpite: {placar?.casa} × {placar?.fora}
+                {ehMata && penaltiSalvo ? ` · passa: ${nomeTime(penaltiSalvo)}` : ''}
+              </span>
+            </span>
+          </div>
+        )}
+        {bloqueado && pronto && !temPalpite && (
+          <div className="jogo-rodape">
+            <span className="status"><span className="pend">você não palpitou</span></span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (jogos.length === 0 && jogosMata.length === 0) {
     return (
       <div className="card vazio">
         <div style={{ fontSize: 40 }}>📅</div>
@@ -123,141 +326,48 @@ export default function ListaJogos({
     );
   }
 
+  // grupos: agrupados por rodada
   const grupos = new Map<string, Jogo[]>();
   jogos.forEach((j) => {
-    const chave = j.rodada || (j.fase === 'grupos' ? 'Fase de Grupos' : 'Mata-mata');
+    const chave = j.rodada || 'Fase de Grupos';
     if (!grupos.has(chave)) grupos.set(chave, []);
     grupos.get(chave)!.push(j);
   });
 
+  // mata-mata: agrupado por fase, na ordem certa
+  const secoesMata = FASE_ORDEM.map((f) => ({
+    titulo: FASE_TITULO[f],
+    lista: jogosMata
+      .filter((j) => j.fase === f)
+      .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime()),
+  })).filter((s) => s.lista.length > 0);
+
   return (
     <div>
       {erro && <div className="erro-flutua">{erro}</div>}
+
       {Array.from(grupos.entries()).map(([titulo, lista]) => (
         <section key={titulo} style={{ marginBottom: 26 }}>
           <h3 className="secao-titulo mono">{titulo}</h3>
-          <div className="jogos">
-            {lista.map((jogo) => {
-              const casa = jogo.time_casa ? mapaTimes.get(jogo.time_casa) : null;
-              const fora = jogo.time_fora ? mapaTimes.get(jogo.time_fora) : null;
-              const travado = jogoComecou(jogo.inicio);
-              const placar = placares[jogo.id];
-              const temPalpite = salvos.has(jogo.id);
-              const oficial = jogo.gols_casa != null && jogo.gols_fora != null;
-              const cravou =
-                oficial && temPalpite && placar &&
-                placar.casa === jogo.gols_casa && placar.fora === jogo.gols_fora;
-              const ptsJogo = oficial && temPalpite && placar
-                ? pontosDoPalpite(placar.casa, placar.fora, jogo.gols_casa, jogo.gols_fora)
-                : 0;
-
-              // mudou em relacao ao ultimo salvo com sucesso?
-              const salvoAtual = salvosPlacares[jogo.id];
-              const mudou =
-                !!placar &&
-                (!salvoAtual || salvoAtual.casa !== placar.casa || salvoAtual.fora !== placar.fora);
-
-              return (
-                <div key={jogo.id} className={`jogo ${travado ? 'travado' : ''}`}>
-                  <div className="jogo-topo">
-                    <span className="jogo-data mono">{formatarData(jogo.inicio)}</span>
-                    {travado ? (
-                      <span className="tag tag-locked">🔒 Fechado</span>
-                    ) : (
-                      <span className="tag tag-grass">Aberto</span>
-                    )}
-                  </div>
-
-                  <div className="confronto">
-                    <div className="lado">
-                      <Bandeira emoji={casa?.bandeira} tamanho={30} />
-                      <span className="time-nome">{casa?.nome || 'A definir'}</span>
-                    </div>
-
-                    <div className="placar">
-                      <Stepper
-                        valor={placar?.casa ?? 0}
-                        travado={travado}
-                        onMais={() => ajustar(jogo.id, 'casa', 1)}
-                        onMenos={() => ajustar(jogo.id, 'casa', -1)}
-                      />
-                      <span className="x mono">×</span>
-                      <Stepper
-                        valor={placar?.fora ?? 0}
-                        travado={travado}
-                        onMais={() => ajustar(jogo.id, 'fora', 1)}
-                        onMenos={() => ajustar(jogo.id, 'fora', -1)}
-                      />
-                    </div>
-
-                    <div className="lado">
-                      <Bandeira emoji={fora?.bandeira} tamanho={30} />
-                      <span className="time-nome">{fora?.nome || 'A definir'}</span>
-                    </div>
-                  </div>
-
-                  {oficial && (
-                    <div className={`oficial ${ptsJogo > 0 ? 'cravou' : ''}`}>
-                      Resultado oficial: <b>{jogo.gols_casa} × {jogo.gols_fora}</b>
-                      {temPalpite && (
-                        ptsJogo === 4 ? ' · você cravou o empate! +4 🔥'
-                        : ptsJogo === 3 ? ' · você cravou o placar! +3 🎯'
-                        : ptsJogo === 1 ? ' · acertou o resultado! +1 ✅'
-                        : ' · não foi dessa vez'
-                      )}
-                    </div>
-                  )}
-
-                  {!travado && (
-                    <div className="jogo-rodape">
-                      <span className="status">
-                        {temPalpite && !mudou ? (
-                          <span className="ok">✓ palpite salvo: {placar?.casa} × {placar?.fora}</span>
-                        ) : placar ? (
-                          <span className="pend">palpite não salvo</span>
-                        ) : (
-                          <span className="pend">defina o placar</span>
-                        )}
-                      </span>
-                      <button
-                        className="btn btn-primary btn-salvar"
-                        disabled={!placar || !mudou || salvando === jogo.id}
-                        onClick={() => salvar(jogo)}
-                      >
-                        {salvando === jogo.id ? 'salvando…' : temPalpite ? 'Atualizar' : 'Salvar'}
-                      </button>
-                    </div>
-                  )}
-
-                  {travado && temPalpite && (
-                    <div className="jogo-rodape">
-                      <span className="status">
-                        <span className="trav">seu palpite: {placar?.casa} × {placar?.fora}</span>
-                      </span>
-                    </div>
-                  )}
-                  {travado && !temPalpite && (
-                    <div className="jogo-rodape">
-                      <span className="status"><span className="pend">você não palpitou</span></span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <div className="jogos">{lista.map((jogo) => renderJogo(jogo, false))}</div>
         </section>
       ))}
 
-      <SecaoMataMata
-        jogos={jogos}
-        times={times}
-        placaresGrupo={placares}
-        totalGrupo={totalGrupo}
-        palpitadosGrupo={palpitadosGrupo}
-        salvosGrupo={salvos.size}
-        palpitesMataIniciais={palpitesMataIniciais}
-        jogosMataReais={jogosMataReais}
-      />
+      {secoesMata.length > 0 && (
+        <div className="mata-bloco">
+          <h2 className="display" style={{ fontSize: 20, marginBottom: 4 }}>🏆 Mata-mata</h2>
+          <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 16 }}>
+            Palpite o placar de cada jogo do mata-mata, igual aos grupos. Empate? Diga quem
+            passa nos pênaltis (+3 se acertar). Cada jogo trava no apito.
+          </p>
+          {secoesMata.map(({ titulo, lista }) => (
+            <section key={titulo} style={{ marginBottom: 26 }}>
+              <h3 className="secao-titulo mono">{titulo}</h3>
+              <div className="jogos">{lista.map((jogo) => renderJogo(jogo, true))}</div>
+            </section>
+          ))}
+        </div>
+      )}
 
       <style jsx>{`
         .erro-flutua {
@@ -270,6 +380,7 @@ export default function ListaJogos({
           font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
           color: var(--gold); margin-bottom: 12px; padding-left: 2px;
         }
+        .mata-bloco { margin-top: 30px; padding-top: 24px; border-top: 2px solid var(--line); }
         .jogos { display: flex; flex-direction: column; gap: 12px; }
         .jogo {
           background: var(--panel); border: 1px solid var(--line);
@@ -288,12 +399,28 @@ export default function ListaJogos({
         .lado {
           display: flex; flex-direction: column; align-items: center; gap: 6px;
         }
-        .bandeira { font-size: 30px; line-height: 1; }
         .time-nome {
           font-size: 13px; font-weight: 700; text-align: center; line-height: 1.15;
         }
         .placar { display: flex; align-items: center; gap: 8px; }
         .x { font-size: 20px; color: var(--text-faint); font-weight: 700; }
+        .pen {
+          margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+          background: rgba(244,196,48,0.08); border: 1px solid var(--gold-deep);
+        }
+        .pen-lbl { font-size: 12px; color: var(--gold); font-weight: 700; }
+        .pen-opts { display: flex; gap: 8px; margin-top: 8px; }
+        .pen-opt {
+          flex: 1; padding: 9px 8px; border-radius: 9px;
+          background: var(--bg-2); border: 1px solid var(--line);
+          color: var(--text); font-size: 13px; font-weight: 700;
+          transition: all 0.12s; line-height: 1.1;
+        }
+        .pen-opt:hover { border-color: var(--gold); }
+        .pen-opt.sel {
+          background: rgba(244,196,48,0.18); border-color: var(--gold);
+          color: var(--gold);
+        }
         .oficial {
           margin-top: 12px; padding: 8px 12px; border-radius: 10px;
           background: var(--bg-2); border: 1px solid var(--line);

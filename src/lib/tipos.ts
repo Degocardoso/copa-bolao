@@ -15,6 +15,7 @@ export type Jogo = {
   inicio: string;
   gols_casa: number | null;
   gols_fora: number | null;
+  vencedor_penaltis?: number | null;
   chave_externa?: string | null;
 };
 
@@ -24,6 +25,7 @@ export type Palpite = {
   jogo_id: number;
   gols_casa: number;
   gols_fora: number;
+  avanca_penaltis?: number | null;
 };
 
 export type LinhaRanking = {

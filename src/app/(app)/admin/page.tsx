@@ -308,6 +308,15 @@ export default async function PaginaAdmin() {
                     <span className="x">×</span>
                     <input type="number" name="gols_fora" min={0} max={20}
                       defaultValue={j.gols_fora ?? ''} placeholder="0" className="inp inp-gol" required />
+                    {j.fase !== 'grupos' && j.time_casa && j.time_fora && (
+                      <select name="vencedor_penaltis" className="inp inp-pen"
+                        defaultValue={j.vencedor_penaltis ?? ''}
+                        title="Quem passou nos pênaltis (preencha só se o jogo terminou empatado)">
+                        <option value="">pênaltis: —</option>
+                        <option value={j.time_casa}>passou: {casa?.nome}</option>
+                        <option value={j.time_fora}>passou: {fora?.nome}</option>
+                      </select>
+                    )}
                     <button className="btn btn-gold btn-lancar">{oficial ? 'Atualizar' : 'Lançar'}</button>
                     {oficial && (
                       <button formAction={limparPlacar} className="btn btn-ghost btn-lancar">Limpar</button>
@@ -368,6 +377,7 @@ export default async function PaginaAdmin() {
         .oficial-tag { color: var(--gold); }
         .placar-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .inp-gol { width: 64px !important; flex: 0 0 64px; text-align: center; font-size: 17px; font-weight: 700; }
+        .inp-pen { width: auto !important; flex: 1 1 150px; min-width: 130px; font-size: 13px; }
         .placar-form .x { color: var(--text-faint); font-weight: 700; }
         .btn-lancar { padding: 9px 16px; font-size: 13px; }
         .podio-row {

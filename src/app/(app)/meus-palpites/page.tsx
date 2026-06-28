@@ -24,12 +24,22 @@ export default async function PaginaMeusPalpites() {
   const listaJogos = (jogos as Jogo[]) || [];
   const comPalpite = listaJogos.filter((j) => mapaPalpite.has(j.id));
 
+  // bônus de +3 por acertar quem passou nos pênaltis (só mata-mata em empate)
+  const bonusPenaltis = (j: Jogo, p: Palpite): number => {
+    if (j.fase === 'grupos') return 0;
+    if (j.gols_casa == null || j.gols_fora == null) return 0;
+    if (j.gols_casa !== j.gols_fora || j.vencedor_penaltis == null) return 0;
+    if (p.gols_casa !== p.gols_fora) return 0;
+    return (p.avanca_penaltis ?? null) === j.vencedor_penaltis ? 3 : 0;
+  };
+
   let totalPontos = 0;
   let cravados = 0;
   comPalpite.forEach((j) => {
     if (j.gols_casa != null && j.gols_fora != null) {
       const p = mapaPalpite.get(j.id)!;
       totalPontos += pontosDoPalpite(p.gols_casa, p.gols_fora, j.gols_casa, j.gols_fora);
+      totalPontos += bonusPenaltis(j, p);
       if (p.gols_casa === j.gols_casa && p.gols_fora === j.gols_fora) {
         cravados += 1;
       }
@@ -75,7 +85,9 @@ export default async function PaginaMeusPalpites() {
             const travado = jogoComecou(j.inicio);
             const oficial = j.gols_casa != null && j.gols_fora != null;
             const cravou = oficial && p.gols_casa === j.gols_casa && p.gols_fora === j.gols_fora;
-            const pts = oficial ? pontosDoPalpite(p.gols_casa, p.gols_fora, j.gols_casa, j.gols_fora) : 0;
+            const pts = oficial
+              ? pontosDoPalpite(p.gols_casa, p.gols_fora, j.gols_casa, j.gols_fora) + bonusPenaltis(j, p)
+              : 0;
 
             return (
               <div key={j.id} className={`linha ${cravou ? 'linha-cravou' : ''}`}>

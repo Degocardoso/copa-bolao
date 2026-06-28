@@ -1,6 +1,5 @@
 import { criarClienteServidor } from '@/lib/supabase-server';
-import { criarClienteAdmin } from '@/lib/supabase-admin';
-import type { Jogo, Time, Palpite, ConfrontoReal } from '@/lib/tipos';
+import type { Jogo, Time, Palpite } from '@/lib/tipos';
 import ListaJogos from './ListaJogos';
 
 export const dynamic = 'force-dynamic';
@@ -10,28 +9,17 @@ export default async function PaginaJogos() {
   const { data: userData } = await supabase.auth.getUser();
   const usuarioId = userData!.user!.id;
 
-  const admin = criarClienteAdmin();
-
   const [
     { data: jogosGrupo },
+    { data: jogosMata },
     { data: times },
     { data: palpites },
-    { data: jogosMataReais },
-    { data: palpitesMata },
   ] = await Promise.all([
     supabase.from('jogos').select('*').eq('fase', 'grupos').order('inicio', { ascending: true }),
+    supabase.from('jogos').select('*').neq('fase', 'grupos').order('inicio', { ascending: true }),
     supabase.from('times').select('*'),
     supabase.from('palpites').select('*').eq('usuario_id', usuarioId),
-    admin.from('jogos').select('fase, time_casa, time_fora, inicio').neq('fase', 'grupos'),
-    admin.from('palpites_mata').select('*').eq('usuario_id', usuarioId),
   ]);
-
-  const listaJogosGrupo = (jogosGrupo as Jogo[]) || [];
-  const totalGrupo = listaJogosGrupo.length;
-  const idsGrupo = new Set(listaJogosGrupo.map((j) => j.id));
-  const palpitadosGrupo = ((palpites as Palpite[]) || []).filter((p) =>
-    idsGrupo.has(p.jogo_id)
-  ).length;
 
   return (
     <main className="container" style={{ paddingTop: 22 }}>
@@ -40,14 +28,11 @@ export default async function PaginaJogos() {
         Defina o placar de cada jogo. Trava no apito inicial. ⏱️
       </p>
       <ListaJogos
-        jogos={listaJogosGrupo}
+        jogos={(jogosGrupo as Jogo[]) || []}
+        jogosMata={(jogosMata as Jogo[]) || []}
         times={(times as Time[]) || []}
         palpitesIniciais={(palpites as Palpite[]) || []}
         usuarioId={usuarioId}
-        totalGrupo={totalGrupo}
-        palpitadosGrupo={palpitadosGrupo}
-        palpitesMataIniciais={palpitesMata || []}
-        jogosMataReais={(jogosMataReais as ConfrontoReal[]) || []}
       />
     </main>
   );

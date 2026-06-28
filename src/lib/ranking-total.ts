@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { pontosMataMata, type PalpiteMata, type RealidadeMata } from './simulador-pontos';
+import { criarClienteAdmin } from './supabase-admin';
+import { pontosDoPalpite } from './tipos';
 import { pontosCraque, type PalpiteCraque, type PodioReal } from './craque-pontos';
 
 export type LinhaRankingTotal = {
@@ -15,29 +16,85 @@ export type LinhaRankingTotal = {
   jogos_avaliados: number;
 };
 
+// Bônus por acertar quem passou nos pênaltis (só quando o jogo real
+// terminou empatado e foi decidido na disputa).
+const BONUS_PENALTIS = 3;
+
 export async function calcularRankingTotal(supabase: SupabaseClient): Promise<LinhaRankingTotal[]> {
+  const admin = criarClienteAdmin();
+
+  // jogos reais do mata-mata, com resultado e quem venceu nos pênaltis
+  const { data: jogosMataData } = await admin
+    .from('jogos')
+    .select('id, gols_casa, gols_fora, vencedor_penaltis')
+    .neq('fase', 'grupos');
+  const jogosMata = jogosMataData || [];
+  const idsMata = jogosMata.map((j) => j.id);
+
   const [
     { data: grupos },
-    { data: pMata },
-    { data: jogosMata },
     { data: pCraque },
     { data: jogadores },
   ] = await Promise.all([
     supabase.from('ranking').select('*'),
-    supabase.from('palpites_mata').select('usuario_id, confronto, fase, time_a, time_b, vencedor, gols_a, gols_b'),
-    supabase.from('jogos').select('fase, time_casa, time_fora, gols_casa, gols_fora').neq('fase', 'grupos'),
     supabase.from('palpites_craque').select('usuario_id, tipo, posicao, jogador_id, qtd'),
     supabase.from('jogadores').select('id, pos_artilheiro, gols_real, pos_assistencia, assist_real'),
   ]);
 
-  const realMata = buildRealidade(jogosMata || []);
-
-  const mataByUser = new Map<string, PalpiteMata[]>();
-  for (const p of (pMata || [])) {
-    if (!mataByUser.has(p.usuario_id)) mataByUser.set(p.usuario_id, []);
-    mataByUser.get(p.usuario_id)!.push(p as PalpiteMata);
+  // palpites das pessoas nos jogos do mata-mata (só busca se houver jogos)
+  let palpitesMata: Record<string, unknown>[] = [];
+  if (idsMata.length) {
+    const { data } = await admin
+      .from('palpites')
+      .select('usuario_id, jogo_id, gols_casa, gols_fora, avanca_penaltis')
+      .in('jogo_id', idsMata);
+    palpitesMata = (data as Record<string, unknown>[]) || [];
   }
 
+  // resultado real de cada jogo do mata-mata
+  const realMata = new Map<number, { gc: number | null; gf: number | null; vp: number | null }>();
+  for (const j of jogosMata) {
+    realMata.set(j.id, {
+      gc: j.gols_casa as number | null,
+      gf: j.gols_fora as number | null,
+      vp: j.vencedor_penaltis as number | null,
+    });
+  }
+
+  // pontos de mata-mata por usuário (placar 4/3/1 + bônus de pênaltis)
+  const mataByUser = new Map<string, { pontos: number; cravados: number; avaliados: number }>();
+  for (const p of palpitesMata) {
+    const jogo = realMata.get(p.jogo_id as number);
+    if (!jogo || jogo.gc == null || jogo.gf == null) continue; // sem resultado ainda
+
+    const uid = p.usuario_id as string;
+    const pgc = p.gols_casa as number;
+    const pgf = p.gols_fora as number;
+
+    const entry = mataByUser.get(uid) || { pontos: 0, cravados: 0, avaliados: 0 };
+    entry.avaliados += 1;
+
+    let pts = pontosDoPalpite(pgc, pgf, jogo.gc, jogo.gf);
+
+    // bônus: jogo real empatou (foi pros pênaltis), a pessoa palpitou empate
+    // e acertou quem passou.
+    const realEmpate = jogo.gc === jogo.gf;
+    const palpiteEmpate = pgc === pgf;
+    if (
+      realEmpate &&
+      jogo.vp != null &&
+      palpiteEmpate &&
+      (p.avanca_penaltis as number | null) === jogo.vp
+    ) {
+      pts += BONUS_PENALTIS;
+    }
+
+    if (pgc === jogo.gc && pgf === jogo.gf) entry.cravados += 1;
+    entry.pontos += pts;
+    mataByUser.set(uid, entry);
+  }
+
+  // pódio real de artilheiro / assistência
   const podioGols: PodioReal = {};
   const podioAssist: PodioReal = {};
   for (const j of (jogadores || [])) {
@@ -59,9 +116,7 @@ export async function calcularRankingTotal(supabase: SupabaseClient): Promise<Li
   return (grupos || []).map((g: Record<string, unknown>) => {
     const uid = g.usuario_id as string;
     const pontosGrupos = (g.pontos as number) ?? 0;
-    const pMataTotal = mataByUser.has(uid)
-      ? pontosMataMata(mataByUser.get(uid)!, realMata).total
-      : 0;
+    const m = mataByUser.get(uid) || { pontos: 0, cravados: 0, avaliados: 0 };
     const cr = craqueByUser.get(uid);
     const pGols = cr ? pontosCraque(cr.gols, podioGols) : 0;
     const pAssist = cr ? pontosCraque(cr.assist, podioAssist) : 0;
@@ -71,50 +126,12 @@ export async function calcularRankingTotal(supabase: SupabaseClient): Promise<Li
       nome: g.nome as string,
       avatar_url: (g.avatar_url as string | null) ?? null,
       pontos_grupos: pontosGrupos,
-      pontos_mata: pMataTotal,
+      pontos_mata: m.pontos,
       pontos_gols: pGols,
       pontos_assist: pAssist,
-      pontos: pontosGrupos + pMataTotal + pGols + pAssist,
-      placares_cravados: (g.placares_cravados as number) ?? 0,
-      jogos_avaliados: (g.jogos_avaliados as number) ?? 0,
+      pontos: pontosGrupos + m.pontos + pGols + pAssist,
+      placares_cravados: ((g.placares_cravados as number) ?? 0) + m.cravados,
+      jogos_avaliados: ((g.jogos_avaliados as number) ?? 0) + m.avaliados,
     };
   });
-}
-
-function buildRealidade(jogos: Record<string, unknown>[]): RealidadeMata {
-  const alcancou: Record<string, Set<number>> = {
-    avos: new Set(),
-    oitavas: new Set(),
-    quartas: new Set(),
-    semi: new Set(),
-    final: new Set(),
-    campeao: new Set(),
-  };
-  const placares = new Map<string, { a: number; b: number; timeA: number; timeB: number }>();
-
-  for (const j of jogos) {
-    const fase = j.fase as string;
-    const casa = j.time_casa as number | null;
-    const fora = j.time_fora as number | null;
-    if (!casa || !fora) continue;
-
-    if (alcancou[fase]) {
-      alcancou[fase].add(casa);
-      alcancou[fase].add(fora);
-    }
-
-    const gc = j.gols_casa as number | null;
-    const gf = j.gols_fora as number | null;
-    if (gc != null && gf != null) {
-      const key = `${fase}-${[casa, fora].sort((a, b) => a - b).join('-')}`;
-      placares.set(key, { a: gc, b: gf, timeA: casa, timeB: fora });
-
-      if (fase === 'final') {
-        if (gc > gf) alcancou.campeao.add(casa);
-        else if (gf > gc) alcancou.campeao.add(fora);
-      }
-    }
-  }
-
-  return { alcancou, placares };
 }
