@@ -29,7 +29,7 @@
   },
   "profiles": {
     "estagio": {
-      "label": "Estágio supervisionado",
+      "label": "Guia de Estágio",
       "desc": "Orientações sobre a documentação de estágio",
       "cover": "",
       "gate": {
@@ -39,7 +39,7 @@
       },
       "hero": {
         "eyebrow": "FECAP · Área do Sucesso Alvarista",
-        "title": "Documentação de Estágio",
+        "title": "Guia de Estágio",
         "lead": "Orientações sobre cada documento exigido durante seu estágio: finalidades, situações em que se aplicam e informações indispensáveis no preenchimento. Registre a leitura de cada conteúdo para acompanhar seu progresso!"
       },
       "sections": [
